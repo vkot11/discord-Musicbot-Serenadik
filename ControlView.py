@@ -11,7 +11,7 @@ class SerenadikView(discord.ui.View):
 
         if self.ctx.voice_client and self.ctx.voice_client.is_playing():
             # self.ctx.voice_client.stop()
-            # await interaction.response.send_message("The song is skipped ⏭", ephemeral=True)
+            await interaction.response.send_message("The song is skipped ⏭", ephemeral=True)
             await self.bot.loop.create_task(self.bot.cogs['SerenadikBot'].skip(self.ctx))
 
     @discord.ui.button(label="⏯️ Pause | Resume", style=discord.ButtonStyle.success)
@@ -29,6 +29,7 @@ class SerenadikView(discord.ui.View):
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         if self.ctx.voice_client:
+            self.bot.cogs['SerenadikBot'].get_queue(self.ctx.guild).clear()
             self.ctx.voice_client.stop()
             await interaction.response.send_message("Stopped the music and cleared the queue 🛑", ephemeral=False)
-            self.bot.cogs['SerenadikBot'].get_queue(self.ctx.guild).clear()
+            
