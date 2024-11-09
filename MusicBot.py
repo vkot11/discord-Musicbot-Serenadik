@@ -8,23 +8,25 @@ from ControlView import SerenadikView
 FFMPEG_OPTIONS = {'options': '-vn', 
                   'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'}
 YDL_OPTIONS = {'format': 'bestaudio'}
+YDL_OPTIONS_ext = {
+    'extract_flat': 'in_playlist',  
+    'skip_download': True,          
+    'quiet': True                   
+}
 URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/.+')
 
 class SerenadikBot(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.queues = {}
-        self.blacklisted_users = [279971956059537408, 416222621068296203]
+        self.blacklisted_users = [279971956059537408]
 
         self.client.add_check(self.globally_block)
 
 
     async def globally_block(self, ctx):
         if ctx.author.id in self.blacklisted_users:
-            if 416222621068296203 in self.blacklisted_users:
-                await ctx.send("❀◕ ‿ ◕❀ if you don't want to play Osu, you won't play musicbot")
-            else:
-                await ctx.send("❀◕ ‿ ◕❀ The bot owner has banned you from using any commands")
+            await ctx.send("❀◕ ‿ ◕❀ The bot owner has banned you from using any commands")
             return False
         return True
     
@@ -54,15 +56,29 @@ class SerenadikBot(commands.Cog):
             if re.match(URL_REGEX, url):
                 if "list=" in url:
                     try:
-                        playlist = Playlist(url)
-                        for video_url in playlist.video_urls:
-                            print("-------------------ADDED 1 SONG TO LIST--------")
-                            queue.append((video_url, 0))
+                        # playlist = Playlist(url)
+                        # for video_url in playlist.video_urls:
+                        #     print("-------------------ADDED 1 SONG TO LIST--------")
+                        #     queue.append((video_url, 0))
+                        with yt_dlp.YoutubeDL(YDL_OPTIONS_ext) as ydl:
+                            playlist_info = ydl.extract_info(url, download=False)
+                            # playlist_title = playlist_info.get('title', 'Unknown Playlist')
+                            # playlist_url = playlist_info.get('webpage_url', playlist_url)
+                            # total_videos = len(playlist_info['entries'])
+                            count_of_songs = 1
+
+                            
+                            for entry in playlist_info['entries']:
+                                print(f"-------------------ADDED {count_of_songs} SONG TO LIST--------")
+                                queue.append((entry['url'], 0))
+                                count_of_songs += 1
+                        
                         embed = discord.Embed(
                             title=" (♡μ_μ) **PLaylist added** :inbox_tray:",
-                            description=f"Title: **[{playlist.title}]({playlist.playlist_url})**\n Count: **{playlist.length}**",
+                            # description=f"Title: **[{playlist_title}]({playlist_url})**\n Count: **{total_videos}**",
                             color=discord.Color.blue()
                         )
+
                         await ctx.send(embed=embed)
 
                     except Exception as e:
