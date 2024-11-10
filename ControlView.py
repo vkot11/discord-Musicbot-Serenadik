@@ -11,7 +11,8 @@ class SerenadikView(discord.ui.View):
 
         if self.ctx.voice_client and self.ctx.voice_client.is_playing():
             # self.ctx.voice_client.stop()
-            await interaction.response.send_message("The song is skipped ⏭", ephemeral=True)
+            # await interaction.response.send_message("The song is skipped ⏭", ephemeral=True)
+            await interaction.response.defer()
             await self.bot.loop.create_task(self.bot.cogs['SerenadikBot'].skip(self.ctx))
 
     @discord.ui.button(label="⏯️ Pause | Resume", style=discord.ButtonStyle.success)

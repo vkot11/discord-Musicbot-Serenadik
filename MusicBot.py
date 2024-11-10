@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 import yt_dlp
 import re
-from pytube import Playlist
 from ControlView import SerenadikView
 
 FFMPEG_OPTIONS = {'options': '-vn', 
@@ -56,17 +55,10 @@ class SerenadikBot(commands.Cog):
             if re.match(URL_REGEX, url):
                 if "list=" in url:
                     try:
-                        # playlist = Playlist(url)
-                        # for video_url in playlist.video_urls:
-                        #     print("-------------------ADDED 1 SONG TO LIST--------")
-                        #     queue.append((video_url, 0))
                         with yt_dlp.YoutubeDL(YDL_OPTIONS_ext) as ydl:
                             playlist_info = ydl.extract_info(url, download=False)
-                            # playlist_title = playlist_info.get('title', 'Unknown Playlist')
-                            # playlist_url = playlist_info.get('webpage_url', playlist_url)
-                            # total_videos = len(playlist_info['entries'])
+                            total_videos = len(playlist_info['entries'])
                             count_of_songs = 1
-
                             
                             for entry in playlist_info['entries']:
                                 print(f"-------------------ADDED {count_of_songs} SONG TO LIST--------")
@@ -75,7 +67,7 @@ class SerenadikBot(commands.Cog):
                         
                         embed = discord.Embed(
                             title=" (♡μ_μ) **PLaylist added** :inbox_tray:",
-                            # description=f"Title: **[{playlist_title}]({playlist_url})**\n Count: **{total_videos}**",
+                            description=f"Title: **[{{'Mix Yutube'}}]({url})**\n Count: **{total_videos}**",
                             color=discord.Color.blue()
                         )
 
@@ -142,7 +134,16 @@ class SerenadikBot(commands.Cog):
                     queue[0] = (url, title, duration, thumbnail, link)
 
         except Exception as e:
-            print(f"Error processing playlist: {e}")
+            error_message = str(e)
+            print(f"Error processing video: {error_message}")
+
+            if "Sign in to confirm your age" in error_message or "inappropriate for some users" in error_message:
+                print("Video skipped due to age restriction.")
+                queue.pop(0)
+                await self.play_next(ctx)
+            else:
+                await ctx.send(f"Error processing video: {error_message}")
+            return
 
         if queue:
             url, title, duration, thumbnail, link = queue.pop(0)
@@ -175,7 +176,7 @@ class SerenadikBot(commands.Cog):
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.stop()
-            await ctx.send("The song is skipped ⏭")
+            # await ctx.send("The song is skipped ⏭")
 
     # @commands.command()
     async def pause(self, ctx):
