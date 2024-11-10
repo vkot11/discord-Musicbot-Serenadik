@@ -58,6 +58,7 @@ class SerenadikBot(commands.Cog):
                         with yt_dlp.YoutubeDL(YDL_OPTIONS_ext) as ydl:
                             playlist_info = ydl.extract_info(url, download=False)
                             total_videos = len(playlist_info['entries'])
+                            playlist_title = playlist_info.get('title', 'Mix Youtube') 
                             count_of_songs = 1
                             
                             for entry in playlist_info['entries']:
@@ -67,7 +68,7 @@ class SerenadikBot(commands.Cog):
                         
                         embed = discord.Embed(
                             title=" (♡μ_μ) **PLaylist added** :inbox_tray:",
-                            description=f"Title: **[{{'Mix Yutube'}}]({url})**\n Count: **{total_videos}**",
+                            description=f"Title: **[{playlist_title}]({url})**\n Count: **{total_videos}**",
                             color=discord.Color.blue()
                         )
 
