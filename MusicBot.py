@@ -3,6 +3,7 @@ from discord.ext import commands
 import yt_dlp
 import re
 from ControlView import SerenadikView
+import collections
 
 FFMPEG_OPTIONS = {'options': '-vn', 
                   'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'}
@@ -30,9 +31,9 @@ class SerenadikBot(commands.Cog):
         return True
     
     
-    def get_queue(self, guild):
+    def get_dequeue(self, guild):
         if guild.id not in self.queues:
-            self.queues[guild.id] = []
+            self.queues[guild.id] = collections.deque()
         return self.queues[guild.id]
 
 # виправити ймовірність не коректного посилання
@@ -49,7 +50,7 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client:
             await voice_channel.connect()
 
-        queue = self.get_queue(ctx.guild)
+        queue = self.get_dequeue(ctx.guild)
 
         async with ctx.typing():
             if re.match(URL_REGEX, url):
@@ -128,7 +129,7 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client:
             await voice_channel.connect()
 
-        queue = self.get_queue(ctx.guild)
+        queue = self.get_dequeue(ctx.guild)
 
         async with ctx.typing():
             if re.match(URL_REGEX, url):
@@ -140,10 +141,9 @@ class SerenadikBot(commands.Cog):
                             playlist_title = playlist_info.get('title', 'Mix Youtube') 
                             count_of_songs = 1
 
-                            
-                            for entry in playlist_info['entries']:
+                            for entry in reversed(playlist_info['entries']):
                                 print(f"-------------------ADDED {count_of_songs} SONG TO LIST--------")
-                                queue.insert(0, (entry['url'], 0))
+                                queue.appendleft((entry['url'], 0))
                                 count_of_songs += 1
                         
                         print(queue)
@@ -166,7 +166,7 @@ class SerenadikBot(commands.Cog):
                         duration = info['duration']
                         thumbnail = info['thumbnail']
                         link = info['webpage_url']
-                        queue.insert(0, (url_new, title, duration, thumbnail, link))
+                        queue.appendleft((url_new, title, duration, thumbnail, link))
 
                     embed = discord.Embed(
                             title=" (♡μ_μ) **Link added** :inbox_tray:",
@@ -184,7 +184,7 @@ class SerenadikBot(commands.Cog):
                     duration = info['duration']
                     thumbnail = info['thumbnail']
                     link = info['webpage_url']
-                    queue.insert(0, (url_new, title, duration, thumbnail, link))
+                    queue.appendleft((url_new, title, duration, thumbnail, link))
 
                 embed = discord.Embed(
                     title=" (♡μ_μ) **Song added** :inbox_tray:",
@@ -197,7 +197,8 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     async def play_next(self, ctx):
-        queue = self.get_queue(ctx.guild)
+        print("TRUE")
+        queue = self.get_dequeue(ctx.guild)
 
         if not queue:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **Queue is empty!**", color=discord.Color.orange())
@@ -218,13 +219,13 @@ class SerenadikBot(commands.Cog):
         except Exception as e:
             error_message = str(e)
             print(f"Error processing video: {error_message}")
-            queue.pop(0)
+            queue.popleft()
             await self.play_next(ctx)
 
             return
 
         if queue:
-            url, title, duration, thumbnail, link = queue.pop(0)
+            url, title, duration, thumbnail, link = queue.popleft()
 
             hours, remainder = divmod(duration, 3600)
             minutes, seconds = divmod(remainder, 60)
@@ -273,7 +274,7 @@ class SerenadikBot(commands.Cog):
     async def stop(self, ctx):
         if ctx.voice_client:
             ctx.voice_client.stop()
-            self.get_queue(ctx.guild).clear()
+            self.get_dequeue(ctx.guild).clear()
     #         await ctx.send(Stopped the music and cleared the queue 🛑)
     
 
@@ -283,5 +284,5 @@ class SerenadikBot(commands.Cog):
         
         if voice_client and len(voice_client.channel.members) == 1:
             await voice_client.disconnect()
-            self.get_queue(member.guild).clear()
+            self.get_dequeue(member.guild).clear()
             print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
