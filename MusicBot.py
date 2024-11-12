@@ -169,8 +169,7 @@ class SerenadikBot(commands.Cog):
 
             source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
             ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
-
-# ////////////////////-embed menu jopta-//////////////////
+            
             embed = discord.Embed(
                 title=" |◔◡◉| **Now Playing** :loud_sound:",
                 description=f"Title: **[{title}]({link})**\n Duration: **{formatted_duration}**",
@@ -178,7 +177,6 @@ class SerenadikBot(commands.Cog):
             )
             embed.set_author(name="Тут може бути ваша реклама", icon_url="https://img3.gelbooru.com//samples/cf/20/sample_cf20516f54dfff954bc364ca7a7d3c38.jpg")
             embed.set_thumbnail(url=thumbnail)
-# ////////////////////-end of embed menu typa-//////////////////
 
             view = SerenadikView(self.client, ctx)
             await ctx.send(embed=embed, view=view)
@@ -187,26 +185,25 @@ class SerenadikBot(commands.Cog):
             embed = discord.Embed(title=" ٩(̾●̮̮̃̾•̃̾)۶ ", description=f"/////////////////", color=discord.Color.red())
             await ctx.send(embed=embed)
             
-    # @commands.command()
+    @commands.command()
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.stop()
             # await ctx.send("The song is skipped ⏭")
 
-    # @commands.command()
+    @commands.command()
     async def pause(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.pause()
             await ctx.send("The song is paused ⏸️")
 
-    # @commands.command()
+    @commands.command()
     async def resume(self, ctx):
         if ctx.voice_client and not ctx.voice_client.is_playing():
             ctx.voice_client.resume()
             await ctx.send("The song continues to play ⏯️")
 
-
-    # @commands.command()
+    @commands.command()
     async def stop(self, ctx):
         if ctx.voice_client:
             ctx.voice_client.stop()
