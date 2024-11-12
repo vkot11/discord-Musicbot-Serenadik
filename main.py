@@ -18,9 +18,21 @@ async def main():
     try:
         await client.add_cog(SerenadikBot(client))
         await client.start(TOKEN)
+
     except Exception as e:
         print(e)
         return
 
+async def io():
+    print("Bot is active")
+    while True:
+        await asyncio.sleep(5)
+
+async def run_async():
+    await asyncio.gather(
+        main(),
+        io()
+    )
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(run_async())
