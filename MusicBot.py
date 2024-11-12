@@ -68,7 +68,7 @@ class SerenadikBot(commands.Cog):
                         
                         embed = discord.Embed(
                             title=" (♡μ_μ) **PLaylist added** :inbox_tray:",
-                            description=f"Title: **[{playlist_title}]({url})**\n Count: **{total_videos}**",
+                            description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
                             color=discord.Color.blue()
                         )
 
@@ -115,6 +115,87 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
+
+    @commands.command()
+    async def fplay(self, ctx, *, url):
+        await ctx.message.delete()
+
+        voice_channel = ctx.author.voice.channel if ctx.author.voice else None
+        
+        if not voice_channel:
+            return await ctx.send("You're not in a voice channel!")
+        
+        if not ctx.voice_client:
+            await voice_channel.connect()
+
+        queue = self.get_queue(ctx.guild)
+
+        async with ctx.typing():
+            if re.match(URL_REGEX, url):
+                if "list=" in url:
+                    try:
+                        with yt_dlp.YoutubeDL(YDL_OPTIONS_ext) as ydl:
+                            playlist_info = ydl.extract_info(url, download=False)
+                            total_videos = len(playlist_info['entries'])
+                            playlist_title = playlist_info.get('title', 'Mix Youtube') 
+                            count_of_songs = 1
+
+                            
+                            for entry in playlist_info['entries']:
+                                print(f"-------------------ADDED {count_of_songs} SONG TO LIST--------")
+                                queue.insert(0, (entry['url'], 0))
+                                count_of_songs += 1
+                        
+                        print(queue)
+                        embed = discord.Embed(
+                            title=" (♡μ_μ) **PLaylist added** :inbox_tray:",
+                            description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
+                            color=discord.Color.blue()
+                        )
+
+                        await ctx.send(embed=embed)
+
+                    except Exception as e:
+                        await ctx.send(f"Error processing playlist: {e}")
+                            
+                else:
+                    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        title = info['title']
+                        url_new = info['url']
+                        duration = info['duration']
+                        thumbnail = info['thumbnail']
+                        link = info['webpage_url']
+                        queue.insert(0, (url_new, title, duration, thumbnail, link))
+
+                    embed = discord.Embed(
+                            title=" (♡μ_μ) **Link added** :inbox_tray:",
+                            description=f"Title: **[{title}]({url})**",
+                            color=discord.Color.blue()
+                    )
+                    await ctx.send(embed=embed)
+            else:
+                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                    info = ydl.extract_info(f"ytsearch:{url}", download=False)
+                    if 'entries' in info:
+                        info = info['entries'][0]
+                    url_new = info['url']
+                    title = info['title']
+                    duration = info['duration']
+                    thumbnail = info['thumbnail']
+                    link = info['webpage_url']
+                    queue.insert(0, (url_new, title, duration, thumbnail, link))
+
+                embed = discord.Embed(
+                    title=" (♡μ_μ) **Song added** :inbox_tray:",
+                    description=f"Title: **{title}**",
+                    color=discord.Color.blue()
+                )
+                await ctx.send(embed=embed)
+
+        if not ctx.voice_client.is_playing():
+            await self.play_next(ctx)
+
     async def play_next(self, ctx):
         queue = self.get_queue(ctx.guild)
 
@@ -137,13 +218,9 @@ class SerenadikBot(commands.Cog):
         except Exception as e:
             error_message = str(e)
             print(f"Error processing video: {error_message}")
+            queue.pop(0)
+            await self.play_next(ctx)
 
-            if "Sign in to confirm your age" in error_message or "inappropriate for some users" in error_message:
-                print("Video skipped due to age restriction.")
-                queue.pop(0)
-                await self.play_next(ctx)
-            else:
-                await ctx.send(f"Error processing video: {error_message}")
             return
 
         if queue:
