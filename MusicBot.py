@@ -36,6 +36,24 @@ class SerenadikBot(commands.Cog):
             self.queues[guild.id] = collections.deque()
         return self.queues[guild.id]
 
+    def extract_video_info(self, url, search=False):
+        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+            if search:
+                url = f"ytsearch:{url}"
+        
+            info = ydl.extract_info(url, download=False)
+
+            if search and 'entries' in info:
+                info = info['entries'][0]
+
+            url_new = info['url']
+            title = info['title']
+            duration = info['duration']
+            thumbnail = info['thumbnail']
+            link = info['webpage_url']
+
+        return (url_new, title, duration, thumbnail, link)
+
 # виправити ймовірність не коректного посилання
 
     @commands.command()
@@ -79,36 +97,22 @@ class SerenadikBot(commands.Cog):
                         await ctx.send(f"Error processing playlist: {e}")
                             
                 else:
-                    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                        info = ydl.extract_info(url, download=False)
-                        title = info['title']
-                        url_new = info['url']
-                        duration = info['duration']
-                        thumbnail = info['thumbnail']
-                        link = info['webpage_url']
-                        queue.append((url_new, title, duration, thumbnail, link))
+                    video_info = self.extract_video_info(url)
+                    queue.append(video_info)
 
                     embed = discord.Embed(
                             title=" (♡μ_μ) **Link added** :inbox_tray:",
-                            description=f"Title: **[{title}]({url})**",
+                            description=f"Title: **[{video_info[1]}]({url})**",
                             color=discord.Color.blue()
                     )
                     await ctx.send(embed=embed)
             else:
-                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                    info = ydl.extract_info(f"ytsearch:{url}", download=False)
-                    if 'entries' in info:
-                        info = info['entries'][0]
-                    url_new = info['url']
-                    title = info['title']
-                    duration = info['duration']
-                    thumbnail = info['thumbnail']
-                    link = info['webpage_url']
-                    queue.append((url_new, title, duration, thumbnail, link))
+                video_info = self.extract_video_info(url, True)
+                queue.append(video_info)
 
                 embed = discord.Embed(
                     title=" (♡μ_μ) **Song added** :inbox_tray:",
-                    description=f"Title: **{title}**",
+                    description=f"Title: **{video_info[1]}**",
                     color=discord.Color.blue()
                 )
                 await ctx.send(embed=embed)
@@ -159,36 +163,22 @@ class SerenadikBot(commands.Cog):
                         await ctx.send(f"Error processing playlist: {e}")
                             
                 else:
-                    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                        info = ydl.extract_info(url, download=False)
-                        title = info['title']
-                        url_new = info['url']
-                        duration = info['duration']
-                        thumbnail = info['thumbnail']
-                        link = info['webpage_url']
-                        queue.appendleft((url_new, title, duration, thumbnail, link))
+                    video_info = self.extract_video_info(url)
+                    queue.appendleft(video_info)
 
                     embed = discord.Embed(
                             title=" (♡μ_μ) **Link added** :inbox_tray:",
-                            description=f"Title: **[{title}]({url})**",
+                            description=f"Title: **[{video_info[1]}]({url})**",
                             color=discord.Color.blue()
                     )
                     await ctx.send(embed=embed)
             else:
-                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                    info = ydl.extract_info(f"ytsearch:{url}", download=False)
-                    if 'entries' in info:
-                        info = info['entries'][0]
-                    url_new = info['url']
-                    title = info['title']
-                    duration = info['duration']
-                    thumbnail = info['thumbnail']
-                    link = info['webpage_url']
-                    queue.appendleft((url_new, title, duration, thumbnail, link))
+                video_info = self.extract_video_info(url, search=True)
+                queue.appendleft(video_info)
 
                 embed = discord.Embed(
                     title=" (♡μ_μ) **Song added** :inbox_tray:",
-                    description=f"Title: **{title}**",
+                    description=f"Title: **{video_info[1]}**",
                     color=discord.Color.blue()
                 )
                 await ctx.send(embed=embed)
@@ -197,7 +187,6 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     async def play_next(self, ctx):
-        print("TRUE")
         queue = self.get_dequeue(ctx.guild)
 
         if not queue:
@@ -207,15 +196,9 @@ class SerenadikBot(commands.Cog):
 
         try:
             if queue[0][1] == 0:
-                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                    info = ydl.extract_info(queue[0][0], download=False)
-                    title = info['title']
-                    url = info['url']
-                    duration = info['duration']
-                    thumbnail = info['thumbnail']
-                    link = info['webpage_url']
-                    queue[0] = (url, title, duration, thumbnail, link)
-
+                video_info = self.extract_video_info(queue[0][0])
+                queue[0] = video_info
+                
         except Exception as e:
             error_message = str(e)
             print(f"Error processing video: {error_message}")

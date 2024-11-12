@@ -25,7 +25,7 @@ async def main():
 
 async def io():
     print("Bot is active")
-    while True:        
+    while True:
         await asyncio.sleep(5)
 
 async def run_async():
