@@ -30,7 +30,7 @@ class SerenadikView(discord.ui.View):
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
         if self.ctx.voice_client:
-            self.bot.cogs['SerenadikBot'].get_dequeue(self.ctx.guild).clear()
+            self.bot.cogs['SerenadikBot'].get_queue(self.ctx.guild).clear()
             self.ctx.voice_client.stop()
             await interaction.response.send_message("Stopped the music and cleared the queue 🛑", ephemeral=False)
             
