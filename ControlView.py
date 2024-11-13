@@ -38,6 +38,16 @@ class SerenadikView(discord.ui.View):
             # await self.bot.loop.create_task(self.bot.cogs['SerenadikBot'].skip(self.ctx))
             await self.bot.cogs['SerenadikBot'].skip(self.ctx)
 
+    @discord.ui.button(label="🔄 Loop", style=discord.ButtonStyle.secondary)
+    async def loop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        if not self.ctx.voice_client:
+            return
+
+        if self.ctx.voice_client.is_playing():
+            await interaction.response.defer()
+            await self.bot.cogs['SerenadikBot'].loop(self.ctx)
+
     @discord.ui.button(label="🛑 Stop", style=discord.ButtonStyle.danger)
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
