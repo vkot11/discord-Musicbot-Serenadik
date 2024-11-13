@@ -4,7 +4,7 @@ import yt_dlp
 import re
 from ControlView import SerenadikView
 import collections
-import time
+from dataclasses import dataclass
 
 
 FFMPEG_OPTIONS = {'options': '-vn', 
@@ -18,6 +18,15 @@ YDL_OPTIONS_EXT = {
 URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/.+')
 
 class SerenadikBot(commands.Cog):
+
+    @dataclass
+    class _VideoInfo:
+        url: str
+        title: str
+        duration: str
+        thumbnail: str
+        link: str
+
     def __init__(self, client):
         self.client = client
         self.queues = {}
@@ -48,13 +57,13 @@ class SerenadikBot(commands.Cog):
         if search and 'entries' in info:
             info = info['entries'][0]
 
-        url_new = info['url']
-        title = info['title']
-        duration = info['duration']
-        thumbnail = info['thumbnail']
-        link = info['webpage_url']
-
-        return (url_new, title, duration, thumbnail, link)
+        return self._VideoInfo(
+            info['url'], 
+            info['title'], 
+            info['duration'], 
+            info['thumbnail'], 
+            info['webpage_url']
+        )
 
     async def __add_playlist_to_queue(self, ctx, url, queue, force=False):
         try:
@@ -69,7 +78,7 @@ class SerenadikBot(commands.Cog):
                 append_method = queue.appendleft
 
             for entry in playlist_entries:
-                append_method((entry['url'], 0))
+                append_method(entry['url'])
 
             embed = discord.Embed(
                 title=f" (♡μ_μ) **PLaylist added { "to the top" if force else "to the end" }** :inbox_tray:",
@@ -142,10 +151,9 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     async def __prepare_video_info(self, queue):
-        if queue[0][1] == 0:
-            try: 
-                video_info = self.__extract_video_info(queue[0][0])
-                queue[0] = video_info
+        if not isinstance(queue[0], self._VideoInfo):
+            try:
+                queue[0] = self.__extract_video_info(queue[0])
             except Exception as e:
                 print(f"Error processing video: {str(e)}")
                 queue.popleft()
@@ -184,12 +192,17 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
             return
 
-        url, title, duration, thumbnail, link = queue.popleft()
-        history_queue.append((url, title, duration, thumbnail, link))
+        video_info = queue.popleft()
+        history_queue.append(video_info)
 
-        await self.__play_audio(ctx, url)
+        await self.__play_audio(ctx, video_info.url)
             
-        embed = self.__create_now_playing_embed(title, link, duration, thumbnail)
+        embed = self.__create_now_playing_embed(
+            video_info.title, 
+            video_info.link, 
+            video_info.duration, 
+            video_info.thumbnail
+        )
         view = SerenadikView(self.client, ctx)
         
         await ctx.send(embed=embed, view=view)
