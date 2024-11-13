@@ -20,8 +20,9 @@ class SerenadikBot(commands.Cog):
     def __init__(self, client):
         self.client = client
         self.queues = {}
+        self.history_queues = {}
         self.blacklisted_users = [279971956059537408]
-
+        
         self.client.add_check(self.globally_block)
 
     async def globally_block(self, ctx):
@@ -30,10 +31,11 @@ class SerenadikBot(commands.Cog):
             return False
         return True
     
-    def get_queue(self, guild):
+    def get_queues(self, guild):
         if guild.id not in self.queues:
             self.queues[guild.id] = collections.deque()
-        return self.queues[guild.id]
+            self.history_queues[guild.id] = []
+        return (self.queues[guild.id], self.history_queues[guild.id])
     
     def __extract_video_info(self, url, search=False):
         with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
@@ -60,8 +62,8 @@ class SerenadikBot(commands.Cog):
                 total_videos = len(playlist_info['entries'])
                 playlist_title = playlist_info.get('title', 'Mix Youtube') 
                 playlist_entries = playlist_info['entries']
-                append_method = queue.append 
-                
+                append_method = queue.append
+
                 if force:
                     playlist_entries = reversed(playlist_entries)
                     append_method = queue.appendleft
@@ -74,7 +76,7 @@ class SerenadikBot(commands.Cog):
                 description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
                 color=discord.Color.blue()
             )
-
+            
             await ctx.send(embed=embed)
 
         except Exception as e:
@@ -92,7 +94,7 @@ class SerenadikBot(commands.Cog):
         await ctx.send(embed=embed)
 
     async def __add_to_queue(self, ctx, url, force=False):
-        queue = self.get_queue(ctx.guild)
+        queue = self.get_queues(ctx.guild)[0]
 
         async with ctx.typing():     
             is_link = re.match(URL_REGEX, url)
@@ -140,7 +142,7 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     async def play_next(self, ctx):
-        queue = self.get_queue(ctx.guild)
+        queue, history_queue = self.get_queues(ctx.guild)
 
         if not queue:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **Queue is empty!**", color=discord.Color.orange())
@@ -159,9 +161,10 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
             return
-
+        
         if queue:
             url, title, duration, thumbnail, link = queue.popleft()
+            history_queue.append((url, title, duration, thumbnail, link))
 
             hours, remainder = divmod(duration, 3600)
             minutes, seconds = divmod(remainder, 60)
@@ -185,30 +188,56 @@ class SerenadikBot(commands.Cog):
             embed = discord.Embed(title=" ٩(̾●̮̮̃̾•̃̾)۶ ", description=f"/////////////////", color=discord.Color.red())
             await ctx.send(embed=embed)
             
+    async def __add_prev_to_queue(self, ctx):
+        queue, history_queue = self.get_queues(ctx.guild)
+
+        if not history_queue or len(history_queue) < 2:
+            embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **There no past songs!**", color=discord.Color.orange())
+            await ctx.send(embed=embed)
+            return False
+        
+        queue.appendleft(history_queue.pop())
+        queue.appendleft(history_queue.pop())
+        return True
+
     @commands.command()
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
+            print("SKIP")
             ctx.voice_client.stop()
-            # await ctx.send("The song is skipped ⏭")
+            #await ctx.send("The song is skipped ⏭")
+
+    @commands.command()
+    async def previous(self, ctx):
+        if ctx.voice_client and ctx.voice_client.is_playing():
+            if not await self.__add_prev_to_queue(ctx):
+                return
+            print("PREV")
+            ctx.voice_client.stop()
 
     @commands.command()
     async def pause(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.pause()
-            await ctx.send("The song is paused ⏸️")
+            # await ctx.send("The song is paused ⏸️")
 
     @commands.command()
     async def resume(self, ctx):
         if ctx.voice_client and not ctx.voice_client.is_playing():
             ctx.voice_client.resume()
-            await ctx.send("The song continues to play ⏯️")
+            # await ctx.send("The song continues to play ⏯️")
+
+    def clear_queues(self, guild):
+        queue, history_queue = self.get_queues(guild)
+        queue.clear()
+        history_queue.clear()
 
     @commands.command()
     async def stop(self, ctx):
         if ctx.voice_client:
             ctx.voice_client.stop()
-            self.get_queue(ctx.guild).clear()
-    #         await ctx.send(Stopped the music and cleared the queue 🛑)
+            self.clear_queues(ctx.guild)
+            await ctx.send("Stopped the music and cleared the queue 🛑")
     
     @commands.Cog.listener()
     async def on_voice_state_update(self, member):
@@ -216,5 +245,5 @@ class SerenadikBot(commands.Cog):
         
         if voice_client and len(voice_client.channel.members) == 1:
             await voice_client.disconnect()
-            self.get_queue(member.guild).clear()
+            self.clear_queues(member.guild)
             print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
