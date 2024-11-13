@@ -29,6 +29,7 @@ class SerenadikBot(commands.Cog):
 
     def __init__(self, client):
         self.client = client
+        self.looped_songs = {}
         self.queues = {}
         self.history_queues = {}
         self.blacklisted_users = [279971956059537408]
@@ -42,12 +43,17 @@ class SerenadikBot(commands.Cog):
             return False
         return True
     
-    def get_queues(self, guild):
-        if guild.id not in self.queues:
-            self.queues[guild.id] = collections.deque()
-            self.history_queues[guild.id] = []
-        return (self.queues[guild.id], self.history_queues[guild.id])
-    
+    def get_queues(self, guild_id):
+        if guild_id not in self.queues:
+            self.queues[guild_id] = collections.deque()
+            self.history_queues[guild_id] = []
+        return (self.queues[guild_id], self.history_queues[guild_id])
+
+    def __get_looped_song(self, guild_id):
+        if guild_id not in self.looped_songs:
+            self.looped_songs[guild_id] = None
+        return self.looped_songs[guild_id]
+
     def __extract_video_info(self, url, search=False):
         if search:
             url = f"ytsearch:{url}"
@@ -103,7 +109,7 @@ class SerenadikBot(commands.Cog):
         await ctx.send(embed=embed)
 
     async def __add_to_queue(self, ctx, url, force=False):
-        queue = self.get_queues(ctx.guild)[0]
+        queue, _ = self.get_queues(ctx.guild.id)
 
         async with ctx.typing():     
             is_link = re.match(URL_REGEX, url)
@@ -181,7 +187,14 @@ class SerenadikBot(commands.Cog):
         return embed
 
     async def play_next(self, ctx):
-        queue, history_queue = self.get_queues(ctx.guild)
+        guild_id = ctx.guild.id
+        looped_song_info = self.__get_looped_song(guild_id)
+        
+        if looped_song_info is not None:
+            await self.__play_audio(ctx, looped_song_info.url)
+            return
+
+        queue, history_queue = self.get_queues(guild_id)
 
         if not queue:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **Queue is empty!**", color=discord.Color.orange())
@@ -212,7 +225,7 @@ class SerenadikBot(commands.Cog):
             await ctx.send(embed=embed)
             
     async def __add_prev_to_queue(self, ctx):
-        queue, history_queue = self.get_queues(ctx.guild)
+        queue, history_queue = self.get_queues(ctx.guild.id)
 
         if not history_queue or len(history_queue) < 2:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **There no past songs!**", color=discord.Color.orange())
@@ -249,8 +262,18 @@ class SerenadikBot(commands.Cog):
             ctx.voice_client.resume()
             # await ctx.send("The song continues to play ⏯️")
 
+    @commands.command()
+    async def loop(self, ctx):
+        if ctx.voice_client and ctx.voice_client.is_playing():
+            guild_id = ctx.guild.id
+            if self.__get_looped_song(guild_id) is None:
+                _, history_queue = self.get_queues(guild_id)
+                self.looped_songs[guild_id] = history_queue[-1]
+            else:
+                self.looped_songs[guild_id] = None
+
     def clear_queues(self, guild):
-        queue, history_queue = self.get_queues(guild)
+        queue, history_queue = self.get_queues(guild.id)
         queue.clear()
         history_queue.clear()
 
