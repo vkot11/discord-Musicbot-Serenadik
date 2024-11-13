@@ -97,7 +97,7 @@ class SerenadikBot(commands.Cog):
 
         embed = discord.Embed(
             title=f" (♡μ_μ) **Song added { "to the top" if force else "to the end" }** :inbox_tray:",
-            description=f"Title: **[{video_info[1]}]({video_info[4]})**",
+            description=f"Title: **[{video_info.title}]({video_info.link})**",
             color=discord.Color.blue()
         )
         await ctx.send(embed=embed)
@@ -207,7 +207,7 @@ class SerenadikBot(commands.Cog):
         
         await ctx.send(embed=embed, view=view)
 
-        if not queue and ctx.voice_client.is_playing():
+        if not queue and not history_queue and ctx.voice_client.is_playing():
             embed = discord.Embed(title=" ٩(̾●̮̮̃̾•̃̾)۶ ", description=f"/////////////////", color=discord.Color.red())
             await ctx.send(embed=embed)
             
