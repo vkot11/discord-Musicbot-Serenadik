@@ -141,6 +141,37 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
+    async def __prepare_video_info(self, queue):
+        if queue[0][1] == 0:
+            try: 
+                video_info = self.__extract_video_info(queue[0][0])
+                queue[0] = video_info
+            except Exception as e:
+                print(f"Error processing video: {str(e)}")
+                queue.popleft()
+                return None
+        return queue[0]
+
+    async def __play_audio(self, ctx, url):
+        source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
+        ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
+
+    def __format_duration(self, duration):
+        hours, remainder = divmod(duration, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+    def __create_now_playing_embed(self, title, link, duration, thumbnail):
+        formatted_duration = self.__format_duration(duration)
+        embed = discord.Embed(
+            title=" |◔◡◉| **Now Playing** :loud_sound:",
+            description=f"Title: **[{title}]({link})**\n Duration: **{formatted_duration}**",
+            color=discord.Color.green()
+        )
+        embed.set_author(name="Тут може бути ваша реклама", icon_url="https://img3.gelbooru.com//samples/cf/20/sample_cf20516f54dfff954bc364ca7a7d3c38.jpg")
+        embed.set_thumbnail(url=thumbnail)
+        return embed
+
     async def play_next(self, ctx):
         queue, history_queue = self.get_queues(ctx.guild)
 
@@ -149,42 +180,21 @@ class SerenadikBot(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        try:
-            if queue[0][1] == 0:
-                video_info = self.__extract_video_info(queue[0][0])
-                queue[0] = video_info
-                
-        except Exception as e:
-            error_message = str(e)
-            print(f"Error processing video: {error_message}")
-            queue.popleft()
+        if await self.__prepare_video_info(queue) is None:
             await self.play_next(ctx)
-
             return
-        
-        if queue:
-            url, title, duration, thumbnail, link = queue.popleft()
-            history_queue.append((url, title, duration, thumbnail, link))
 
-            hours, remainder = divmod(duration, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            formatted_duration = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+        url, title, duration, thumbnail, link = queue.popleft()
+        history_queue.append((url, title, duration, thumbnail, link))
 
-            source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
-            ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
+        await self.__play_audio(ctx, url)
             
-            embed = discord.Embed(
-                title=" |◔◡◉| **Now Playing** :loud_sound:",
-                description=f"Title: **[{title}]({link})**\n Duration: **{formatted_duration}**",
-                color=discord.Color.green()
-            )
-            embed.set_author(name="Тут може бути ваша реклама", icon_url="https://img3.gelbooru.com//samples/cf/20/sample_cf20516f54dfff954bc364ca7a7d3c38.jpg")
-            embed.set_thumbnail(url=thumbnail)
+        embed = self.__create_now_playing_embed(title, link, duration, thumbnail)
+        view = SerenadikView(self.client, ctx)
+        
+        await ctx.send(embed=embed, view=view)
 
-            view = SerenadikView(self.client, ctx)
-            await ctx.send(embed=embed, view=view)
-
-        elif not ctx.voice_client.is_playing():
+        if not queue and ctx.voice_client.is_playing():
             embed = discord.Embed(title=" ٩(̾●̮̮̃̾•̃̾)۶ ", description=f"/////////////////", color=discord.Color.red())
             await ctx.send(embed=embed)
             
@@ -196,8 +206,7 @@ class SerenadikBot(commands.Cog):
             await ctx.send(embed=embed)
             return False
         
-        queue.appendleft(history_queue.pop())
-        queue.appendleft(history_queue.pop())
+        queue.extendleft([history_queue.pop(), history_queue.pop()])
         return True
 
     @commands.command()
