@@ -196,12 +196,14 @@ class SerenadikBot(commands.Cog):
             await ctx.send(embed=embed)
             return False
         
-        queue.appendleft(history_queue.pop(len(history_queue) - 2))
+        queue.appendleft(history_queue.pop())
+        queue.appendleft(history_queue.pop())
         return True
 
     @commands.command()
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
+            print("SKIP")
             ctx.voice_client.stop()
             #await ctx.send("The song is skipped ⏭")
 
@@ -210,6 +212,7 @@ class SerenadikBot(commands.Cog):
         if ctx.voice_client and ctx.voice_client.is_playing():
             if not await self.__add_prev_to_queue(ctx):
                 return
+            print("PREV")
             ctx.voice_client.stop()
 
     @commands.command()
