@@ -4,12 +4,13 @@ import yt_dlp
 import re
 from ControlView import SerenadikView
 import collections
+import time
 
 
 FFMPEG_OPTIONS = {'options': '-vn', 
                   'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'}
 YDL_OPTIONS = {'format': 'bestaudio'}
-YDL_OPTIONS_ext = {
+YDL_OPTIONS_EXT = {
     'extract_flat': 'in_playlist',  
     'skip_download': True,          
     'quiet': True                   
@@ -22,8 +23,9 @@ class SerenadikBot(commands.Cog):
         self.queues = {}
         self.history_queues = {}
         self.blacklisted_users = [279971956059537408]
-        
         self.client.add_check(self.globally_block)
+        self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
+        self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
 
     async def globally_block(self, ctx):
         if ctx.author.id in self.blacklisted_users:
@@ -38,38 +40,36 @@ class SerenadikBot(commands.Cog):
         return (self.queues[guild.id], self.history_queues[guild.id])
     
     def __extract_video_info(self, url, search=False):
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-            if search:
-                url = f"ytsearch:{url}"
+        if search:
+            url = f"ytsearch:{url}"
         
-            info = ydl.extract_info(url, download=False)
+        info = self.ydl.extract_info(url, download=False)
 
-            if search and 'entries' in info:
-                info = info['entries'][0]
+        if search and 'entries' in info:
+            info = info['entries'][0]
 
-            url_new = info['url']
-            title = info['title']
-            duration = info['duration']
-            thumbnail = info['thumbnail']
-            link = info['webpage_url']
+        url_new = info['url']
+        title = info['title']
+        duration = info['duration']
+        thumbnail = info['thumbnail']
+        link = info['webpage_url']
 
         return (url_new, title, duration, thumbnail, link)
 
     async def __add_playlist_to_queue(self, ctx, url, queue, force=False):
         try:
-            with yt_dlp.YoutubeDL(YDL_OPTIONS_ext) as ydl:
-                playlist_info = ydl.extract_info(url, download=False)
-                total_videos = len(playlist_info['entries'])
-                playlist_title = playlist_info.get('title', 'Mix Youtube') 
-                playlist_entries = playlist_info['entries']
-                append_method = queue.append
+            playlist_info = self.ydl_ext.extract_info(url, download=False)
+            total_videos = len(playlist_info['entries'])
+            playlist_title = playlist_info.get('title', 'Mix Youtube') 
+            playlist_entries = playlist_info['entries']
+            append_method = queue.append
 
-                if force:
-                    playlist_entries = reversed(playlist_entries)
-                    append_method = queue.appendleft
+            if force:
+                playlist_entries = reversed(playlist_entries)
+                append_method = queue.appendleft
 
-                for entry in playlist_entries:
-                    append_method((entry['url'], 0))
+            for entry in playlist_entries:
+                append_method((entry['url'], 0))
 
             embed = discord.Embed(
                 title=f" (♡μ_μ) **PLaylist added { "to the top" if force else "to the end" }** :inbox_tray:",
