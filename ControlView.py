@@ -45,6 +45,7 @@ class SerenadikView(discord.ui.View):
             return
 
         if self.ctx.voice_client.is_playing():
+            await interaction.response.defer()
             await self.bot.cogs['SerenadikBot'].loop(self.ctx)
 
     @discord.ui.button(label="🛑 Stop", style=discord.ButtonStyle.danger)

@@ -266,11 +266,14 @@ class SerenadikBot(commands.Cog):
     async def loop(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             guild_id = ctx.guild.id
-            if self.__get_looped_song(guild_id) is None:
+            loop_disabled = self.__get_looped_song(guild_id) is None
+            if loop_disabled:
                 _, history_queue = self.get_queues(guild_id)
                 self.looped_songs[guild_id] = history_queue[-1]
             else:
                 self.looped_songs[guild_id] = None
+                
+            await ctx.send(f"Looping for the current song was { 'enabled' if loop_disabled else 'disabled' } 🔄")
 
     def clear_queues(self, guild):
         queue, history_queue = self.get_queues(guild.id)
