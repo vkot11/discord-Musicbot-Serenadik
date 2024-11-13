@@ -283,8 +283,9 @@ class SerenadikBot(commands.Cog):
     @commands.command()
     async def stop(self, ctx):
         if ctx.voice_client:
-            ctx.voice_client.stop()
             self.clear_queues(ctx.guild)
+            self.looped_songs[ctx.guild.id] = None
+            ctx.voice_client.stop()
             await ctx.send("Stopped the music and cleared the queue 🛑")
     
     @commands.Cog.listener()
