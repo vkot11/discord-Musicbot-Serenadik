@@ -22,7 +22,7 @@ class SerenadikBot(commands.Cog):
         self.queues = {}
         self.history_queues = {}
         self.blacklisted_users = [279971956059537408]
-
+        
         self.client.add_check(self.globally_block)
 
     async def globally_block(self, ctx):
@@ -62,8 +62,8 @@ class SerenadikBot(commands.Cog):
                 total_videos = len(playlist_info['entries'])
                 playlist_title = playlist_info.get('title', 'Mix Youtube') 
                 playlist_entries = playlist_info['entries']
-                append_method = queue.append 
-                
+                append_method = queue.append
+
                 if force:
                     playlist_entries = reversed(playlist_entries)
                     append_method = queue.appendleft
@@ -76,7 +76,7 @@ class SerenadikBot(commands.Cog):
                 description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
                 color=discord.Color.blue()
             )
-
+            
             await ctx.send(embed=embed)
 
         except Exception as e:
@@ -141,14 +141,8 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
-    async def play_next(self, ctx, from_history=False):
-        ctx.voice_client.stop()
-
+    async def play_next(self, ctx):
         queue, history_queue = self.get_queues(ctx.guild)
-
-        print(history_queue)
-        print(f"\n{'-'*30}\n")
-        print(queue)
 
         if not queue:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **Queue is empty!**", color=discord.Color.orange())
@@ -169,11 +163,8 @@ class SerenadikBot(commands.Cog):
             return
         
         if queue:
-            if from_history:
-                url, title, duration, thumbnail, link = queue[0]
-            else:
-                url, title, duration, thumbnail, link = queue.popleft()
-                history_queue.append((url, title, duration, thumbnail, link))
+            url, title, duration, thumbnail, link = queue.popleft()
+            history_queue.append((url, title, duration, thumbnail, link))
 
             hours, remainder = divmod(duration, 3600)
             minutes, seconds = divmod(remainder, 60)
@@ -200,26 +191,26 @@ class SerenadikBot(commands.Cog):
     async def __add_prev_to_queue(self, ctx):
         queue, history_queue = self.get_queues(ctx.guild)
 
-        if not history_queue:
+        if not history_queue or len(history_queue) < 2:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **There no past songs!**", color=discord.Color.orange())
             await ctx.send(embed=embed)
-            return
+            return False
         
-        queue.appendleft(history_queue.pop())
+        queue.appendleft(history_queue.pop(len(history_queue) - 2))
+        return True
 
     @commands.command()
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
-            await self.play_next(ctx)
-            # ctx.voice_client.stop()
+            ctx.voice_client.stop()
             #await ctx.send("The song is skipped ⏭")
 
     @commands.command()
     async def previous(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
-            await self.__add_prev_to_queue(ctx)
-            await self.play_next(ctx, True)
-            # ctx.voice_client.stop()
+            if not await self.__add_prev_to_queue(ctx):
+                return
+            ctx.voice_client.stop()
 
     @commands.command()
     async def pause(self, ctx):
