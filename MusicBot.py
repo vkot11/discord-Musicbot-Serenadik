@@ -1,28 +1,44 @@
-import discord
-from discord.ext import commands
-import yt_dlp
 import re
-from ControlView import SerenadikView
+import time
+import yt_dlp
+import discord
 import collections
+from discord.ext import commands
+from dataclasses import dataclass
+from ControlView import SerenadikView
 
 
 FFMPEG_OPTIONS = {'options': '-vn', 
                   'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'}
 YDL_OPTIONS = {'format': 'bestaudio'}
-YDL_OPTIONS_ext = {
+YDL_OPTIONS_EXT = {
     'extract_flat': 'in_playlist',  
     'skip_download': True,          
     'quiet': True                   
 }
-URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/.+')
+URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+')
 
 class SerenadikBot(commands.Cog):
+
+    @dataclass
+    class _VideoInfo:
+        url: str
+        title: str
+        duration: str
+        thumbnail: str
+        link: str
+
     def __init__(self, client):
         self.client = client
         self.queues = {}
-        self.blacklisted_users = [279971956059537408]
-
+        self.looped_songs = {}
+        self.history_queues = {}
+        self.songs_start_time = {}
+        self.blacklisted_users = []
+        self.manually_stopped_flags = {}
+        self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
         self.client.add_check(self.globally_block)
+        self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
 
     async def globally_block(self, ctx):
         if ctx.author.id in self.blacklisted_users:
@@ -30,51 +46,67 @@ class SerenadikBot(commands.Cog):
             return False
         return True
     
-    def get_queue(self, guild):
-        if guild.id not in self.queues:
-            self.queues[guild.id] = collections.deque()
-        return self.queues[guild.id]
-    
-    def __extract_video_info(self, url, search=False):
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-            if search:
-                url = f"ytsearch:{url}"
+    def get_queues(self, guild_id):
+        if guild_id not in self.queues:
+            self.queues[guild_id] = collections.deque()
+            self.history_queues[guild_id] = []
+        return (self.queues[guild_id], self.history_queues[guild_id])
+
+    def __get_looped_song(self, guild_id):
+        if guild_id not in self.looped_songs:
+            self.looped_songs[guild_id] = None
+        return self.looped_songs[guild_id]
+
+    def __get_manually_stopped(self, guild_id):
+        if guild_id not in self.manually_stopped_flags:
+            self.manually_stopped_flags[guild_id] = False
+        return self.manually_stopped_flags[guild_id]
+
+    def __get_current_playback_time(self, guild_id):
+        if guild_id not in self.songs_start_time:
+            return 0
         
-            info = ydl.extract_info(url, download=False)
+        elapsed = max(0, time.time() - self.songs_start_time[guild_id])
+        return int(elapsed)
 
-            if search and 'entries' in info:
-                info = info['entries'][0]
+    def __extract_video_info(self, url, search=False):
+        if search:
+            url = f"ytsearch:{url}"
+        
+        info = self.ydl.extract_info(url, download=False)
 
-            url_new = info['url']
-            title = info['title']
-            duration = info['duration']
-            thumbnail = info['thumbnail']
-            link = info['webpage_url']
+        if search and 'entries' in info:
+            info = info['entries'][0]
 
-        return (url_new, title, duration, thumbnail, link)
+        return self._VideoInfo(
+            info['url'], 
+            info['title'], 
+            info['duration'], 
+            info['thumbnail'], 
+            info['webpage_url']
+        )
 
     async def __add_playlist_to_queue(self, ctx, url, queue, force=False):
         try:
-            with yt_dlp.YoutubeDL(YDL_OPTIONS_ext) as ydl:
-                playlist_info = ydl.extract_info(url, download=False)
-                total_videos = len(playlist_info['entries'])
-                playlist_title = playlist_info.get('title', 'Mix Youtube') 
-                playlist_entries = playlist_info['entries']
-                append_method = queue.append 
-                
-                if force:
-                    playlist_entries = reversed(playlist_entries)
-                    append_method = queue.appendleft
+            playlist_info = self.ydl_ext.extract_info(url, download=False)
+            total_videos = len(playlist_info['entries'])
+            playlist_title = playlist_info.get('title', 'Mix Youtube') 
+            playlist_entries = playlist_info['entries']
+            append_method = queue.append
 
-                for entry in playlist_entries:
-                    append_method((entry['url'], 0))
+            if force:
+                playlist_entries = reversed(playlist_entries)
+                append_method = queue.appendleft
+
+            for entry in playlist_entries:
+                append_method(entry['url'])
 
             embed = discord.Embed(
                 title=f" (♡μ_μ) **PLaylist added {'to the top' if force else 'to the end'}** :inbox_tray:",
                 description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
                 color=discord.Color.blue()
             )
-
+            
             await ctx.send(embed=embed)
 
         except Exception as e:
@@ -85,14 +117,14 @@ class SerenadikBot(commands.Cog):
         queue.appendleft(video_info) if force else queue.append(video_info)
 
         embed = discord.Embed(
-            title=f" (♡μ_μ) **Song added { 'to the top' if force else 'to the end' }** :inbox_tray:",
-            description=f"Title: **[{video_info[1]}]({video_info[4]})**",
+            title=f" (♡μ_μ) **Song added { "to the top" if force else "to the end" }** :inbox_tray:",
+            description=f"Title: **[{video_info.title}]({video_info.link})**",
             color=discord.Color.blue()
         )
         await ctx.send(embed=embed)
 
     async def __add_to_queue(self, ctx, url, force=False):
-        queue = self.get_queue(ctx.guild)
+        queue, _ = self.get_queues(ctx.guild.id)
 
         async with ctx.typing():     
             is_link = re.match(URL_REGEX, url)
@@ -139,76 +171,202 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
+    async def __prepare_video_info(self, queue):
+        if not isinstance(queue[0], self._VideoInfo):
+            try:
+                queue[0] = self.__extract_video_info(queue[0])
+            except Exception as e:
+                print(f"Error processing video: {str(e)}")
+                queue.popleft()
+                return None
+        return queue[0]
+
+    async def __play_audio(self, ctx, url, ffmpeg_options):
+        source = await discord.FFmpegOpusAudio.from_probe(url, **ffmpeg_options)
+        ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
+        self.songs_start_time[ctx.guild.id] = time.time()
+
+    def __format_duration(self, duration):
+        hours, remainder = divmod(duration, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+    def __create_now_playing_embed(self, title, link, duration, thumbnail):
+        formatted_duration = self.__format_duration(duration)
+        embed = discord.Embed(
+            title=" |◔◡◉| **Now Playing** :loud_sound:",
+            description=f"Title: **[{title}]({link})**\n Duration: **{formatted_duration}**",
+            color=discord.Color.green()
+        )
+        embed.set_author(name="Тут може бути ваша реклама", icon_url="https://img3.gelbooru.com//samples/cf/20/sample_cf20516f54dfff954bc364ca7a7d3c38.jpg")
+        embed.set_thumbnail(url=thumbnail)
+        return embed
+
     async def play_next(self, ctx):
-        queue = self.get_queue(ctx.guild)   
+        guild_id = ctx.guild.id
+        
+        manually_stopped = self.__get_manually_stopped(guild_id)
+        
+        if manually_stopped:
+            print("manually_stopped")
+            self.manually_stopped_flags[guild_id] = False
+            return
+
+        looped_song_info = self.__get_looped_song(guild_id)
+
+        if looped_song_info is not None:
+            await self.__play_audio(ctx, looped_song_info.url, FFMPEG_OPTIONS)
+            return
+
+        queue, history_queue = self.get_queues(guild_id)
 
         if not queue:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **Queue is empty!**", color=discord.Color.orange())
             await ctx.send(embed=embed)
             return
 
-        try:
-            if queue[0][1] == 0:
-                video_info = self.__extract_video_info(queue[0][0])
-                queue[0] = video_info
-                
-        except Exception as e:
-            error_message = str(e)
-            print(f"Error processing video: {error_message}")
-            queue.popleft()
+        if await self.__prepare_video_info(queue) is None:
             await self.play_next(ctx)
-
             return
 
-        if queue:
-            url, title, duration, thumbnail, link = queue.popleft()
+        video_info = queue.popleft()
+        history_queue.append(video_info)
 
-            hours, remainder = divmod(duration, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            formatted_duration = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+        await self.__play_audio(ctx, video_info.url, FFMPEG_OPTIONS)
+        
+        embed = self.__create_now_playing_embed(
+            video_info.title, 
+            video_info.link, 
+            video_info.duration, 
+            video_info.thumbnail
+        )
+        view = SerenadikView(self.client, ctx)
+        
+        await ctx.send(embed=embed, view=view)
 
-            source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
-            ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
-            
-            embed = discord.Embed(
-                title=" |◔◡◉| **Now Playing** :loud_sound:",
-                description=f"Title: **[{title}]({link})**\n Duration: **{formatted_duration}**",
-                color=discord.Color.green()
-            )
-            embed.set_author(name="Тут може бути ваша реклама", icon_url="https://img3.gelbooru.com//samples/cf/20/sample_cf20516f54dfff954bc364ca7a7d3c38.jpg")
-            embed.set_thumbnail(url=thumbnail)
-
-            view = SerenadikView(self.client, ctx)
-            await ctx.send(embed=embed, view=view)
-
-        elif not ctx.voice_client.is_playing():
+        if not queue and not history_queue and ctx.voice_client.is_playing():
             embed = discord.Embed(title=" ٩(̾●̮̮̃̾•̃̾)۶ ", description=f"/////////////////", color=discord.Color.red())
             await ctx.send(embed=embed)
             
+    # async def play_next(self, ctx):
+    #     await self.__play_next_impl(ctx)
+    #     self.songs_start_time[ctx.guild.id] = time.time()
+            
+    async def __add_prev_to_queue(self, ctx):
+        queue, history_queue = self.get_queues(ctx.guild.id)
+
+        if not history_queue or len(history_queue) < 2:
+            embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **There no past songs!**", color=discord.Color.orange())
+            await ctx.send(embed=embed)
+            return False
+        
+        queue.extendleft([history_queue.pop(), history_queue.pop()])
+        return True
+
     @commands.command()
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
+            print("SKIP")
             ctx.voice_client.stop()
-            # await ctx.send("The song is skipped ⏭")
+            #await ctx.send("The song is skipped ⏭")
+
+    @commands.command()
+    async def previous(self, ctx):
+        if ctx.voice_client and ctx.voice_client.is_playing():
+            if not await self.__add_prev_to_queue(ctx):
+                return
+            print("PREV")
+            ctx.voice_client.stop()
 
     @commands.command()
     async def pause(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.pause()
-            await ctx.send("The song is paused ⏸️")
+            # await ctx.send("The song is paused ⏸️")
 
     @commands.command()
     async def resume(self, ctx):
         if ctx.voice_client and not ctx.voice_client.is_playing():
             ctx.voice_client.resume()
-            await ctx.send("The song continues to play ⏯️")
+            # await ctx.send("The song continues to play ⏯️")
+
+    @commands.command()
+    async def loop(self, ctx):
+        if ctx.voice_client and ctx.voice_client.is_playing():
+            guild_id = ctx.guild.id
+            loop_disabled = self.__get_looped_song(guild_id) is None
+            if loop_disabled:
+                _, history_queue = self.get_queues(guild_id)
+                self.looped_songs[guild_id] = history_queue[-1]
+            else:
+                self.looped_songs[guild_id] = None
+                
+            await ctx.send(f"Looping for the current song was { 'enabled' if loop_disabled else 'disabled' } 🔄")
+
+    @commands.command()
+    async def seek(self, ctx, seconds: int):
+        guild_id = ctx.guild.id
+        
+        _, history_queue = self.get_queues(guild_id)
+        
+        if not history_queue:
+            await ctx.send("σ(≧ε≦σ) ♡ **There is no song playing currently!**")
+            return
+
+        video_info = history_queue[-1]
+        url = video_info.url
+        target_time = min(max(0, seconds), int(video_info.duration))
+
+        FFMPEG_SEEK_OPTIONS = {
+            **FFMPEG_OPTIONS,
+            'before_options': f"-ss {target_time} -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+        }
+
+        self.manually_stopped_flags[guild_id] = True
+        ctx.voice_client.stop()
+        await self.__play_audio(ctx, url, FFMPEG_SEEK_OPTIONS)
+
+        embed = discord.Embed(
+            title="⏩ **Seeked to a new time**",
+            description=f"Current position set to **{target_time} seconds**.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def forward(self, ctx, seconds: int):
+        current_position = self.__get_current_playback_time(ctx.guild.id)
+        target_time = current_position + seconds
+        print(f"forward by {seconds} seconds")
+        print(f"current_position: {current_position}")
+        print(f"target_time: {target_time}")
+        await self.seek(ctx, target_time)
+        self.songs_start_time[ctx.guild.id] = time.time() - target_time
+        
+    @commands.command()
+    async def backward(self, ctx, seconds: int):
+        current_position = self.__get_current_playback_time(ctx.guild.id)
+        target_time = current_position - seconds
+        print(f"backward by {seconds} seconds")
+        print(f"current_position: {current_position}")
+        print(f"target_time: {target_time}")
+        await self.seek(ctx, target_time)
+        self.songs_start_time[ctx.guild.id] = time.time() - target_time
+
+    def clear_queues(self, guild_id):
+        queue, history_queue = self.get_queues(guild_id)
+        queue.clear()
+        history_queue.clear()
 
     @commands.command()
     async def stop(self, ctx):
         if ctx.voice_client:
+            guild_id = ctx.guild.id
+            self.clear_queues(guild_id)
+            self.looped_songs[guild_id] = None
+            self.manually_stopped_flags[guild_id] = True
             ctx.voice_client.stop()
-            self.get_queue(ctx.guild).clear()
-    #         await ctx.send(Stopped the music and cleared the queue 🛑)
+            await ctx.send("Stopped the music and cleared the queue 🛑")
     
     @commands.Cog.listener()
     async def on_voice_state_update(self, member):
@@ -216,5 +374,6 @@ class SerenadikBot(commands.Cog):
         
         if voice_client and len(voice_client.channel.members) == 1:
             await voice_client.disconnect()
-            self.get_queue(member.guild).clear()
+            self.clear_queues(member.guild.id)
             print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
+    
