@@ -1,3 +1,4 @@
+import os
 import re
 import time
 import yt_dlp
@@ -17,6 +18,7 @@ YDL_OPTIONS_EXT = {
     'quiet': True                   
 }
 URL_REGEX = re.compile(r'(https?:\\/\\/)?(?:www\\.)?(youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+')
+BLACKLIST_FILE = "blacklist"
 
 class SerenadikBot(commands.Cog):
 
@@ -41,11 +43,25 @@ class SerenadikBot(commands.Cog):
         self.client.add_check(self.__globally_block)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
 
+        SerenadikBot._blacklisted_users = SerenadikBot.__load_blacklist()
+
+    def __load_blacklist():
+         with open(BLACKLIST_FILE, 'a+') as file:
+             file.seek(0)
+             return set(line.strip() for line in file)
+
+    def __save_blacklist():
+        with open(BLACKLIST_FILE, 'w') as file:
+            for user_id in SerenadikBot._blacklisted_users:
+                file.write(f"{ user_id }\n")
+
     def ban_user(user_id: str):
         SerenadikBot._blacklisted_users.add(user_id)
+        SerenadikBot.__save_blacklist()
     
     def unban_user(user_id: str):
         SerenadikBot._blacklisted_users.discard(user_id)
+        SerenadikBot.__save_blacklist()
 
     async def __globally_block(self, ctx):
         if str(ctx.author.id) in SerenadikBot._blacklisted_users:
