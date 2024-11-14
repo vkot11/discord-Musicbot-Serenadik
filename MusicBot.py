@@ -16,7 +16,7 @@ YDL_OPTIONS_EXT = {
     'skip_download': True,          
     'quiet': True                   
 }
-URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+')
+URL_REGEX = re.compile(r'(https?:\\/\\/)?(?:www\\.)??(youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+')
 
 class SerenadikBot(commands.Cog):
 
