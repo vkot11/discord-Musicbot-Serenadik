@@ -15,7 +15,7 @@ YDL_OPTIONS_EXT = {
     'skip_download': True,          
     'quiet': True                   
 }
-URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/.+')
+URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+')
 
 class SerenadikBot(commands.Cog):
 
@@ -32,7 +32,7 @@ class SerenadikBot(commands.Cog):
         self.looped_songs = {}
         self.queues = {}
         self.history_queues = {}
-        self.blacklisted_users = [279971956059537408]
+        self.blacklisted_users = []
         self.client.add_check(self.globally_block)
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
