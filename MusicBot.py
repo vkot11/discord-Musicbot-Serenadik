@@ -28,20 +28,27 @@ class SerenadikBot(commands.Cog):
         thumbnail: str
         link: str
 
+    _blacklisted_users = set()
+
     def __init__(self, client):
         self.client = client
         self.queues = {}
         self.looped_songs = {}
         self.history_queues = {}
         self.songs_start_time = {}
-        self.blacklisted_users = []
         self.manually_stopped_flags = {}
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
-        self.client.add_check(self.globally_block)
+        self.client.add_check(self.__globally_block)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
 
-    async def globally_block(self, ctx):
-        if ctx.author.id in self.blacklisted_users:
+    def ban_user(user_id: str):
+        SerenadikBot._blacklisted_users.add(user_id)
+    
+    def unban_user(user_id: str):
+        SerenadikBot._blacklisted_users.discard(user_id)
+
+    async def __globally_block(self, ctx):
+        if str(ctx.author.id) in SerenadikBot._blacklisted_users:
             await ctx.send("❀◕ ‿ ◕❀ The bot owner has banned you from using any commands")
             return False
         return True
