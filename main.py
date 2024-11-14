@@ -23,16 +23,16 @@ async def main():
         print(e)
         return
 
-async def io():
-    print("Bot is active")
-    while True:
-        await asyncio.sleep(5)
+# async def io():
+#     print("Bot is active")
+#     while True:
+#         await asyncio.sleep(5)
 
-async def run_async():
-    await asyncio.gather(
-        main(),
-        io()
-    )
+# async def run_async():
+#     await asyncio.gather(
+#         main(),
+#         io()
+#     )
 
 if __name__ == "__main__":
-    asyncio.run(run_async())
+    asyncio.run(main())

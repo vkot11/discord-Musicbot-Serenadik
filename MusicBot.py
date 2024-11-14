@@ -70,7 +70,7 @@ class SerenadikBot(commands.Cog):
                     append_method((entry['url'], 0))
 
             embed = discord.Embed(
-                title=f" (♡μ_μ) **PLaylist added { "to the top" if force else "to the end" }** :inbox_tray:",
+                title=f" (♡μ_μ) **PLaylist added {'to the top' if force else 'to the end'}** :inbox_tray:",
                 description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
                 color=discord.Color.blue()
             )
@@ -85,7 +85,7 @@ class SerenadikBot(commands.Cog):
         queue.appendleft(video_info) if force else queue.append(video_info)
 
         embed = discord.Embed(
-            title=f" (♡μ_μ) **Song added { "to the top" if force else "to the end" }** :inbox_tray:",
+            title=f" (♡μ_μ) **Song added { 'to the top' if force else 'to the end' }** :inbox_tray:",
             description=f"Title: **[{video_info[1]}]({video_info[4]})**",
             color=discord.Color.blue()
         )
@@ -140,7 +140,7 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     async def play_next(self, ctx):
-        queue = self.get_queue(ctx.guild)
+        queue = self.get_queue(ctx.guild)   
 
         if not queue:
             embed = discord.Embed(title=" σ(≧ε≦σ) ♡ **Queue is empty!**", color=discord.Color.orange())
