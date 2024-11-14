@@ -89,7 +89,7 @@ class SerenadikBot(commands.Cog):
     async def __add_playlist_to_queue(self, ctx, url, queue, force=False):
         try:
             playlist_info = self.ydl_ext.extract_info(url, download=False)
-            total_videos = len(playlist_info['entries'])
+            total_songs = len(playlist_info['entries'])
             playlist_title = playlist_info.get('title', 'Mix Youtube') 
             playlist_entries = playlist_info['entries']
             append_method = queue.append
@@ -103,7 +103,7 @@ class SerenadikBot(commands.Cog):
 
             embed = discord.Embed(
                 title=f" (♡μ_μ) **PLaylist added { "to the top" if force else "to the end" }** :inbox_tray:",
-                description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
+                description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_songs}**",
                 color=discord.Color.blue()
             )
             
@@ -112,7 +112,7 @@ class SerenadikBot(commands.Cog):
         except Exception as e:
             await ctx.send(f"Error processing playlist: {e}")
 
-    async def __add_video_to_queue(self, ctx, url, queue, is_link=True, force=False):
+    async def __add_song_to_queue(self, ctx, url, queue, is_link=True, force=False):
         song_info = self.__extract_song_info(url, not is_link)
         queue.appendleft(song_info) if force else queue.append(song_info)
 
@@ -133,7 +133,7 @@ class SerenadikBot(commands.Cog):
                 await self.__add_playlist_to_queue(ctx, url, queue, force)
 
             else:
-                await self.__add_video_to_queue(ctx, url, queue, is_link, force)
+                await self.__add_song_to_queue(ctx, url, queue, is_link, force)
                 
 # виправити ймовірність не коректного посилання
 
@@ -176,7 +176,7 @@ class SerenadikBot(commands.Cog):
             try:
                 queue[0] = self.__extract_song_info(queue[0])
             except Exception as e:
-                print(f"Error processing video: {str(e)}")
+                print(f"Error processing song: {str(e)}")
                 queue.popleft()
                 return None
         return queue[0]
