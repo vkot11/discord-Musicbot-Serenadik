@@ -1,10 +1,11 @@
-import discord
-from discord.ext import commands
-import yt_dlp
 import re
-from ControlView import SerenadikView
+import time
+import yt_dlp
+import discord
 import collections
+from discord.ext import commands
 from dataclasses import dataclass
+from ControlView import SerenadikView
 
 
 FFMPEG_OPTIONS = {'options': '-vn', 
@@ -29,12 +30,14 @@ class SerenadikBot(commands.Cog):
 
     def __init__(self, client):
         self.client = client
-        self.looped_songs = {}
         self.queues = {}
+        self.looped_songs = {}
         self.history_queues = {}
+        self.songs_start_time = {}
         self.blacklisted_users = []
-        self.client.add_check(self.globally_block)
+        self.manually_stopped_flags = {}
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
+        self.client.add_check(self.globally_block)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
 
     async def globally_block(self, ctx):
@@ -53,6 +56,18 @@ class SerenadikBot(commands.Cog):
         if guild_id not in self.looped_songs:
             self.looped_songs[guild_id] = None
         return self.looped_songs[guild_id]
+
+    def __get_manually_stopped(self, guild_id):
+        if guild_id not in self.manually_stopped_flags:
+            self.manually_stopped_flags[guild_id] = False
+        return self.manually_stopped_flags[guild_id]
+
+    def __get_current_playback_time(self, guild_id):
+        if guild_id not in self.songs_start_time:
+            return 0
+        
+        elapsed = max(0, time.time() - self.songs_start_time[guild_id])
+        return int(elapsed)
 
     def __extract_video_info(self, url, search=False):
         if search:
@@ -166,9 +181,10 @@ class SerenadikBot(commands.Cog):
                 return None
         return queue[0]
 
-    async def __play_audio(self, ctx, url):
-        source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
+    async def __play_audio(self, ctx, url, ffmpeg_options):
+        source = await discord.FFmpegOpusAudio.from_probe(url, **ffmpeg_options)
         ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
+        self.songs_start_time[ctx.guild.id] = time.time()
 
     def __format_duration(self, duration):
         hours, remainder = divmod(duration, 3600)
@@ -188,10 +204,18 @@ class SerenadikBot(commands.Cog):
 
     async def play_next(self, ctx):
         guild_id = ctx.guild.id
-        looped_song_info = self.__get_looped_song(guild_id)
         
+        manually_stopped = self.__get_manually_stopped(guild_id)
+        
+        if manually_stopped:
+            print("manually_stopped")
+            self.manually_stopped_flags[guild_id] = False
+            return
+
+        looped_song_info = self.__get_looped_song(guild_id)
+
         if looped_song_info is not None:
-            await self.__play_audio(ctx, looped_song_info.url)
+            await self.__play_audio(ctx, looped_song_info.url, FFMPEG_OPTIONS)
             return
 
         queue, history_queue = self.get_queues(guild_id)
@@ -208,8 +232,8 @@ class SerenadikBot(commands.Cog):
         video_info = queue.popleft()
         history_queue.append(video_info)
 
-        await self.__play_audio(ctx, video_info.url)
-            
+        await self.__play_audio(ctx, video_info.url, FFMPEG_OPTIONS)
+        
         embed = self.__create_now_playing_embed(
             video_info.title, 
             video_info.link, 
@@ -223,6 +247,10 @@ class SerenadikBot(commands.Cog):
         if not queue and not history_queue and ctx.voice_client.is_playing():
             embed = discord.Embed(title=" ٩(̾●̮̮̃̾•̃̾)۶ ", description=f"/////////////////", color=discord.Color.red())
             await ctx.send(embed=embed)
+            
+    # async def play_next(self, ctx):
+    #     await self.__play_next_impl(ctx)
+    #     self.songs_start_time[ctx.guild.id] = time.time()
             
     async def __add_prev_to_queue(self, ctx):
         queue, history_queue = self.get_queues(ctx.guild.id)
@@ -275,16 +303,68 @@ class SerenadikBot(commands.Cog):
                 
             await ctx.send(f"Looping for the current song was { 'enabled' if loop_disabled else 'disabled' } 🔄")
 
-    def clear_queues(self, guild):
-        queue, history_queue = self.get_queues(guild.id)
+    @commands.command()
+    async def seek(self, ctx, seconds: int):
+        guild_id = ctx.guild.id
+        
+        _, history_queue = self.get_queues(guild_id)
+        
+        if not history_queue:
+            await ctx.send("σ(≧ε≦σ) ♡ **There is no song playing currently!**")
+            return
+
+        video_info = history_queue[-1]
+        url = video_info.url
+        target_time = min(max(0, seconds), int(video_info.duration))
+
+        FFMPEG_SEEK_OPTIONS = {
+            **FFMPEG_OPTIONS,
+            'before_options': f"-ss {target_time} -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+        }
+
+        self.manually_stopped_flags[guild_id] = True
+        ctx.voice_client.stop()
+        await self.__play_audio(ctx, url, FFMPEG_SEEK_OPTIONS)
+
+        embed = discord.Embed(
+            title="⏩ **Seeked to a new time**",
+            description=f"Current position set to **{target_time} seconds**.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def forward(self, ctx, seconds: int):
+        current_position = self.__get_current_playback_time(ctx.guild.id)
+        target_time = current_position + seconds
+        print(f"forward by {seconds} seconds")
+        print(f"current_position: {current_position}")
+        print(f"target_time: {target_time}")
+        await self.seek(ctx, target_time)
+        self.songs_start_time[ctx.guild.id] = time.time() - target_time
+        
+    @commands.command()
+    async def backward(self, ctx, seconds: int):
+        current_position = self.__get_current_playback_time(ctx.guild.id)
+        target_time = current_position - seconds
+        print(f"backward by {seconds} seconds")
+        print(f"current_position: {current_position}")
+        print(f"target_time: {target_time}")
+        await self.seek(ctx, target_time)
+        self.songs_start_time[ctx.guild.id] = time.time() - target_time
+
+    def clear_queues(self, guild_id):
+        queue, history_queue = self.get_queues(guild_id)
         queue.clear()
         history_queue.clear()
 
     @commands.command()
     async def stop(self, ctx):
         if ctx.voice_client:
-            self.clear_queues(ctx.guild)
-            self.looped_songs[ctx.guild.id] = None
+            guild_id = ctx.guild.id
+            self.clear_queues(guild_id)
+            self.looped_songs[guild_id] = None
+            self.manually_stopped_flags[guild_id] = True
             ctx.voice_client.stop()
             await ctx.send("Stopped the music and cleared the queue 🛑")
     
@@ -294,5 +374,6 @@ class SerenadikBot(commands.Cog):
         
         if voice_client and len(voice_client.channel.members) == 1:
             await voice_client.disconnect()
-            self.clear_queues(member.guild)
+            self.clear_queues(member.guild.id)
             print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
+    
