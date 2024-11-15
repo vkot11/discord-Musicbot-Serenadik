@@ -6,6 +6,7 @@ import collections
 from discord.ext import commands
 from dataclasses import dataclass
 from ControlView import SerenadikView
+from SpotipyRequirements import SpotifyClient
 
 
 FFMPEG_OPTIONS = {'options': '-vn', 
@@ -16,7 +17,9 @@ YDL_OPTIONS_EXT = {
     'skip_download': True,          
     'quiet': True                   
 }
-URL_REGEX = re.compile(r'(https?://)?(www\.)?(youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+')
+URL_REGEX = re.compile(
+    r'(https?://)?(www\.)?((youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+|(open\.spotify\.com)/(track|album|playlist|artist)/[a-zA-Z0-9]+)'
+    )
 
 class SerenadikBot(commands.Cog):
 
@@ -28,20 +31,30 @@ class SerenadikBot(commands.Cog):
         thumbnail: str
         link: str
 
+    _blacklisted_users = set()
+
     def __init__(self, client):
         self.client = client
+        self.spotify_client = SpotifyClient()  
         self.queues = {}
         self.looped_songs = {}
         self.history_queues = {}
+        self.youtube_search_cache = {}
         self.songs_start_time = {}
         self.blacklisted_users = []
         self.manually_stopped_flags = {}
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
-        self.client.add_check(self.globally_block)
+        self.client.add_check(self.__globally_block)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
 
-    async def globally_block(self, ctx):
-        if ctx.author.id in self.blacklisted_users:
+    def ban_user(user_id: str):
+        SerenadikBot._blacklisted_users.add(user_id)
+    
+    def unban_user(user_id: str):
+        SerenadikBot._blacklisted_users.discard(user_id)
+        
+    async def __globally_block(self, ctx):
+        if str(ctx.author.id) in SerenadikBot._blacklisted_users:
             await ctx.send("❀◕ ‿ ◕❀ The bot owner has banned you from using any commands")
             return False
         return True
@@ -71,6 +84,9 @@ class SerenadikBot(commands.Cog):
 
     def __extract_video_info(self, url, search=False):
         if search:
+            if url in self.youtube_search_cache:
+                return self.youtube_search_cache[url]
+            
             url = f"ytsearch:{url}"
         
         info = self.ydl.extract_info(url, download=False)
@@ -117,7 +133,7 @@ class SerenadikBot(commands.Cog):
         queue.appendleft(video_info) if force else queue.append(video_info)
 
         embed = discord.Embed(
-            title=f" (♡μ_μ) **Song added { "to the top" if force else "to the end" }** :inbox_tray:",
+            title=f" (♡μ_μ) **Song added { 'to the top' if force else 'to the end' }** :inbox_tray:",
             description=f"Title: **[{video_info.title}]({video_info.link})**",
             color=discord.Color.blue()
         )
@@ -129,11 +145,80 @@ class SerenadikBot(commands.Cog):
         async with ctx.typing():     
             is_link = re.match(URL_REGEX, url)
 
-            if is_link and "list=" in url:
+            if is_link and "spotify" in url:
+                await self.__handle_spotify_url(ctx, url, queue, force)
+
+            elif is_link and "list=" in url:
                 await self.__add_playlist_to_queue(ctx, url, queue, force)
 
             else:
                 await self.__add_video_to_queue(ctx, url, queue, is_link, force)
+
+    async def __handle_spotify_url(self, ctx, url, queue, force):
+        if "track" in url:
+            await self.__add_spotify_track(ctx, url, queue, force)
+
+        elif "playlist" in url:
+            await self.__add_spotify_playlist(ctx, url, queue, force)
+
+        elif "album" in url:
+            await self.__add_spotify_album(ctx, url, queue, force)
+
+    async def __add_spotify_track(self, ctx, url, queue, force):
+            spotify_info = self.spotify_client.get_track_info(url)
+
+            if spotify_info:
+                youtube_url = self.__extract_video_info(f"{spotify_info['title']} {spotify_info['artist']}", search=True).link
+            
+            if youtube_url:
+                await self.__add_video_to_queue(ctx, youtube_url, queue, True, force)
+
+            else:
+                await ctx.send("Could not find a matching YouTube video for the Spotify track.")
+
+    async def __add_spotify_playlist(self, ctx, url, queue, force):
+        try:
+            playlist_info = self.spotify_client.get_playlist_info(url)
+            total_tracks = len(playlist_info['tracks'])
+            playlist_title = playlist_info.get('title', 'Spotify Playlist')
+
+            for track in playlist_info['tracks']:
+                youtube_url = self.__extract_video_info(f"{track['title']} {track['artist']}", search=True).link
+                
+                if youtube_url:
+                    queue.appendleft(youtube_url) if force else queue.append(youtube_url)
+
+            embed = discord.Embed(
+                title=f" (♡μ_μ) **Spotify Playlist added {'to the top' if force else 'to the end'}** :inbox_tray:",
+                description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_tracks}**",
+                color=discord.Color.blue()
+            )
+            await ctx.send(embed=embed)
+        except Exception as e:
+            print(e)
+            return
+
+    async def __add_spotify_album(self, ctx, url, queue, force=False):
+        try:
+            album_info = self.spotify_client.get_album_info(url)
+            total_tracks = len(album_info['tracks'])
+            album_title = album_info.get('title', 'Spotify Album')
+                # спробуй album_info['title']
+
+            for track in album_info['tracks']:
+                youtube_url = self.__extract_video_info(f"{track['title']} {track['artist']}", search=True).link
+                if youtube_url:
+                    queue.appendleft(youtube_url) if force else queue.append(youtube_url)
+
+            embed = discord.Embed(
+                title=f" (♡μ_μ) **Spotify Album added {'to the top' if force else 'to the end'}** :inbox_tray:",
+                description=f"Title: **[{album_title}]({url})**\n Song count: **{total_tracks}**",
+                color=discord.Color.blue()
+            )
+            await ctx.send(embed=embed)
+        except Exception as e:
+            print(e)
+            return
                 
 # виправити ймовірність не коректного посилання
 
