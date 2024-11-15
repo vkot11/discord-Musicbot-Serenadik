@@ -27,19 +27,6 @@ class SpotifyClient:
     def get_album_info(self, url):
         return self.__get_album_info(url)
 
-    # def __get_song_info(self, query):
-    #     results = self.client.search(q=query, type='track', limit=1)
-    #     if results['tracks']['items']:
-    #         track = results['tracks']['items'][0]
-    #         return {
-    #             'title': track['name'],
-    #             'artist': track['artists'][0]['name'],
-    #             'url': track['external_urls']['spotify'],
-    #             'thumbnail': track['album']['images'][0]['url'],
-    #             'duration_ms': track['duration_ms']
-    #         }
-    #     return None
-
     def __get_track_info(self, url):
         track_id = url.split('/')[-1].split('?')[0]
         track = self.client.track(track_id)
@@ -86,7 +73,3 @@ class SpotifyClient:
                 for track in tracks
             ]
         }
-    
-# client = SpotipyClient()
-# song_info = client._SpotipyClient__get_song_info('Marry Christmass')
-# print(song_info)
