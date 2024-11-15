@@ -23,11 +23,11 @@ def unban_user(user_id):
     if user_id:
         SerenadikBot.unban_user(user_id)
         print(f"User with id '{ user_id }' has been unbanned.")
-
 commands = {
     "/ban": lambda args: [ban_user(user_id) for user_id in args],
     "/unban": lambda args: [unban_user(user_id) for user_id in args]
 }
+
 
 async def main():
     try:
