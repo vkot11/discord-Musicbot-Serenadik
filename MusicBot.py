@@ -173,7 +173,7 @@ class SerenadikBot(commands.Cog):
             spotify_info = self.spotify_client.get_track_info(url)
             search_query = f"{spotify_info['title']} {spotify_info['artist']}"
 
-            await self.__add_video_to_queue(ctx, search_query, queue, None, force)
+            await self.__add_song_to_queue(ctx, search_query, queue, None, force)
 
     async def __add_spotify_playlist(self, ctx, url, queue, force):
         playlist_info = self.spotify_client.get_playlist_info(url)
@@ -544,4 +544,49 @@ class SerenadikBot(commands.Cog):
             await voice_client.disconnect()
             self.clear_queues(member.guild.id)
             print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
+    
+    @commands.command()
+    async def info(self, ctx):
+        embed = discord.Embed(
+            title="Info",
+            description="Serenadik is a music bot designed to play songs from YouTube, Spotify, it is possible to turn on Osu radio and Normal radio",
+            color=discord.Color.dark_theme()
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command()
+    async def help(self, ctx):
+        embed = discord.Embed(
+            title="Help Menu",
+            description="List of available commands:",
+            color=discord.Color.greyple()
+        )
+        embed.add_field(
+            name="**Main commands**:",
+            value=(
+                "`!help` — Show a list of available commands.\n"
+                "`!play <url or text>` — Add a song to the queue and start playing.\n"
+                "`!fplay <url or text>` — Add a song to the beginning of the queue and start playing.\n"
+                "`!skip` — Skip the current song.\n"
+                "`!previous` — Play previous song.\n"
+                "`!pause` — Pause the current song.\n"
+                "`!resume` — Continue playing the song.\n"
+                "`!loop` — Enable or disable the repeat of the current song.\n"
+                "`!stop` — Stop playback and clear the queue.\n"
+                "`!seek <seconds>` — Rewind the song to the specified time.\n"
+                "`!forward <seconds>` — Fast forward the specified number of seconds.\n"
+                "`!backward <seconds>` — Rewind by the specified number of seconds.\n"
+                "`!info` — Show information about the bot.\n"
+            ),inline=False
+        )
+        
+        embed.add_field(
+            name="**Radio commands**:",
+            value=(
+                "`!osu` — Play Osu! Radio.\n"
+                "`!radio <radio url>` — Play the radio station using the link.\n"
+            ),
+            inline=False
+        )
+        await ctx.send(embed=embed)
     
