@@ -171,7 +171,7 @@ class SerenadikBot(commands.Cog):
             spotify_info = self.spotify_client.get_track_info(url)
             search_query = f"{spotify_info['title']} {spotify_info['artist']}"
 
-            await self.__add_video_to_queue(ctx, search_query, queue, None, force)
+            await self.__add_song_to_queue(ctx, search_query, queue, None, force)
 
     async def __add_spotify_playlist(self, ctx, url, queue, force):
         playlist_info = self.spotify_client.get_playlist_info(url)
