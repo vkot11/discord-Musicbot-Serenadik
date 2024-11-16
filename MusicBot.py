@@ -24,7 +24,7 @@ URL_REGEX = re.compile(
 class SerenadikBot(commands.Cog):
 
     @dataclass
-    class _VideoInfo:
+    class _SongInfo:
         url: str
         title: str
         duration: str
@@ -82,7 +82,7 @@ class SerenadikBot(commands.Cog):
         elapsed = max(0, time.time() - self.songs_start_time[guild_id])
         return int(elapsed)
 
-    def __extract_video_info(self, url, search=False):
+    def __extract_song_info(self, url, search=False):
         if search:
             if url in self.youtube_search_cache:
                 return self.youtube_search_cache[url]
@@ -94,7 +94,7 @@ class SerenadikBot(commands.Cog):
         if search and 'entries' in info:
             info = info['entries'][0]
 
-        return self._VideoInfo(
+        return self._SongInfo(
             info['url'], 
             info['title'], 
             info['duration'], 
@@ -105,7 +105,7 @@ class SerenadikBot(commands.Cog):
     async def __add_playlist_to_queue(self, ctx, url, queue, force=False):
         try:
             playlist_info = self.ydl_ext.extract_info(url, download=False)
-            total_videos = len(playlist_info['entries'])
+            total_songs = len(playlist_info['entries'])
             playlist_title = playlist_info.get('title', 'Mix Youtube') 
             playlist_entries = playlist_info['entries']
             append_method = queue.append
@@ -119,22 +119,22 @@ class SerenadikBot(commands.Cog):
 
             embed = discord.Embed(
                 title=f" (♡μ_μ) **PLaylist added {'to the top' if force else 'to the end'}** :inbox_tray:",
-                description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_videos}**",
+                description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_songs}**",
                 color=discord.Color.blue()
             )
             
             await ctx.send(embed=embed)
 
         except Exception as e:
-            await ctx.send(f"Error processing playlist: {e}")
+            await ctx.send(f"Error processing playlist-__add_playlist_to_queue: {e}")
 
-    async def __add_video_to_queue(self, ctx, url, queue, is_link=True, force=False):
-        video_info = self.__extract_video_info(url, not is_link)
-        queue.appendleft(video_info) if force else queue.append(video_info)
+    async def __add_song_to_queue(self, ctx, url, queue, is_link=True, force=False):
+        song_info = self.__extract_song_info(url, not is_link)
+        queue.appendleft(song_info) if force else queue.append(song_info)
 
         embed = discord.Embed(
             title=f" (♡μ_μ) **Song added { 'to the top' if force else 'to the end' }** :inbox_tray:",
-            description=f"Title: **[{video_info.title}]({video_info.link})**",
+            description=f"Title: **[{song_info.title}]({song_info.link})**",
             color=discord.Color.blue()
         )
         await ctx.send(embed=embed)
@@ -152,7 +152,8 @@ class SerenadikBot(commands.Cog):
                 await self.__add_playlist_to_queue(ctx, url, queue, force)
 
             else:
-                await self.__add_video_to_queue(ctx, url, queue, is_link, force)
+                print(1)
+                await self.__add_song_to_queue(ctx, url, queue, is_link, force)
 
     async def __handle_spotify_url(self, ctx, url, queue, force):
         if "track" in url:
@@ -166,59 +167,53 @@ class SerenadikBot(commands.Cog):
 
     async def __add_spotify_track(self, ctx, url, queue, force):
             spotify_info = self.spotify_client.get_track_info(url)
+            search_query = f"{spotify_info['title']} {spotify_info['artist']}"
 
-            if spotify_info:
-                youtube_url = self.__extract_video_info(f"{spotify_info['title']} {spotify_info['artist']}", search=True).link
-            
-            if youtube_url:
-                await self.__add_video_to_queue(ctx, youtube_url, queue, True, force)
-
-            else:
-                await ctx.send("Could not find a matching YouTube video for the Spotify track.")
+            await self.__add_video_to_queue(ctx, search_query, queue, None, force)
 
     async def __add_spotify_playlist(self, ctx, url, queue, force):
-        try:
-            playlist_info = self.spotify_client.get_playlist_info(url)
-            total_tracks = len(playlist_info['tracks'])
-            playlist_title = playlist_info.get('title', 'Spotify Playlist')
+        playlist_info = self.spotify_client.get_playlist_info(url)
+        total_tracks = len(playlist_info['tracks'])
+        playlist_title = playlist_info.get('title', 'Spotify Playlist')
+        playlist_tracks = playlist_info['tracks']
+        append_method = queue.append
 
-            for track in playlist_info['tracks']:
-                youtube_url = self.__extract_video_info(f"{track['title']} {track['artist']}", search=True).link
-                
-                if youtube_url:
-                    queue.appendleft(youtube_url) if force else queue.append(youtube_url)
+        if force:
+            playlist_tracks = reversed(playlist_tracks)
+            append_method = queue.appendleft
 
-            embed = discord.Embed(
-                title=f" (♡μ_μ) **Spotify Playlist added {'to the top' if force else 'to the end'}** :inbox_tray:",
-                description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_tracks}**",
-                color=discord.Color.blue()
-            )
-            await ctx.send(embed=embed)
-        except Exception as e:
-            print(e)
-            return
+        for track in playlist_tracks:
+            youtube_url = track['title'] + ' ' + track['artist']
+            append_method(youtube_url)
+
+        embed = discord.Embed(
+            title=f" (♡μ_μ) **Spotify Playlist added {'to the top' if force else 'to the end'}** :inbox_tray:",
+            description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_tracks}**",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
 
     async def __add_spotify_album(self, ctx, url, queue, force=False):
-        try:
-            album_info = self.spotify_client.get_album_info(url)
-            total_tracks = len(album_info['tracks'])
-            album_title = album_info.get('title', 'Spotify Album')
-                # спробуй album_info['title']
+        album_info = self.spotify_client.get_album_info(url)
+        total_tracks = len(album_info['tracks'])
+        album_title = album_info.get('title', 'Spotify Album')
+        album_tracks = album_info['tracks']
+        append_method = queue.append
 
-            for track in album_info['tracks']:
-                youtube_url = self.__extract_video_info(f"{track['title']} {track['artist']}", search=True).link
-                if youtube_url:
-                    queue.appendleft(youtube_url) if force else queue.append(youtube_url)
+        if force:
+            album_tracks = reversed(album_tracks)
+            append_method = queue.appendleft
 
-            embed = discord.Embed(
-                title=f" (♡μ_μ) **Spotify Album added {'to the top' if force else 'to the end'}** :inbox_tray:",
-                description=f"Title: **[{album_title}]({url})**\n Song count: **{total_tracks}**",
-                color=discord.Color.blue()
-            )
-            await ctx.send(embed=embed)
-        except Exception as e:
-            print(e)
-            return
+        for track in album_tracks:
+            youtube_url = track['title'] + ' ' + track['artist']
+            append_method(youtube_url)
+
+        embed = discord.Embed(
+            title=f" (♡μ_μ) **Spotify Album added {'to the top' if force else 'to the end'}** :inbox_tray:",
+            description=f"Title: **[{album_title}]({url})**\n Song count: **{total_tracks}**",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
                 
 # виправити ймовірність не коректного посилання
 
@@ -251,17 +246,18 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client:
             await voice_channel.connect()
 
-        await self.__add_to_queue(ctx, url, True);
+        await self.__add_to_queue(ctx, url, True)
 
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
-    async def __prepare_video_info(self, queue):
-        if not isinstance(queue[0], self._VideoInfo):
+    async def __prepare_song_info(self, queue):
+        if not isinstance(queue[0], self._SongInfo):
             try:
-                queue[0] = self.__extract_video_info(queue[0])
+                is_link = re.match(URL_REGEX, queue[0])
+                queue[0] = self.__extract_song_info(queue[0], not is_link)
             except Exception as e:
-                print(f"Error processing video: {str(e)}")
+                print(f"Error processing video__prepare_song_info: {str(e)}")
                 queue.popleft()
                 return None
         return queue[0]
@@ -289,7 +285,6 @@ class SerenadikBot(commands.Cog):
 
     async def play_next(self, ctx):
         guild_id = ctx.guild.id
-        
         manually_stopped = self.__get_manually_stopped(guild_id)
         
         if manually_stopped:
@@ -310,20 +305,20 @@ class SerenadikBot(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        if await self.__prepare_video_info(queue) is None:
+        if await self.__prepare_song_info(queue) is None:
             await self.play_next(ctx)
             return
 
-        video_info = queue.popleft()
-        history_queue.append(video_info)
+        song_info = queue.popleft()
+        history_queue.append(song_info)
 
-        await self.__play_audio(ctx, video_info.url, FFMPEG_OPTIONS)
+        await self.__play_audio(ctx, song_info.url, FFMPEG_OPTIONS)
         
         embed = self.__create_now_playing_embed(
-            video_info.title, 
-            video_info.link, 
-            video_info.duration, 
-            video_info.thumbnail
+            song_info.title, 
+            song_info.link, 
+            song_info.duration, 
+            song_info.thumbnail
         )
         view = SerenadikView(self.client, ctx)
         
@@ -332,10 +327,6 @@ class SerenadikBot(commands.Cog):
         if not queue and not history_queue and ctx.voice_client.is_playing():
             embed = discord.Embed(title=" ٩(̾●̮̮̃̾•̃̾)۶ ", description=f"/////////////////", color=discord.Color.red())
             await ctx.send(embed=embed)
-            
-    # async def play_next(self, ctx):
-    #     await self.__play_next_impl(ctx)
-    #     self.songs_start_time[ctx.guild.id] = time.time()
             
     async def __add_prev_to_queue(self, ctx):
         queue, history_queue = self.get_queues(ctx.guild.id)
@@ -398,9 +389,9 @@ class SerenadikBot(commands.Cog):
             await ctx.send("σ(≧ε≦σ) ♡ **There is no song playing currently!**")
             return
 
-        video_info = history_queue[-1]
-        url = video_info.url
-        target_time = min(max(0, seconds), int(video_info.duration))
+        song_info = history_queue[-1]
+        url = song_info.url
+        target_time = min(max(0, seconds), int(song_info.duration))
 
         FFMPEG_SEEK_OPTIONS = {
             **FFMPEG_OPTIONS,
