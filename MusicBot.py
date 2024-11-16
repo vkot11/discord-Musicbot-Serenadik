@@ -486,8 +486,7 @@ class SerenadikBot(commands.Cog):
             await voice_channel.connect()
 
         if not ctx.voice_client.is_playing():
-            source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
-            ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
+            await self.__play_audio(ctx, url, FFMPEG_OPTIONS)
             return True
             
         return False
