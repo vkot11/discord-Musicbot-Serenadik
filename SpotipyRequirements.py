@@ -1,7 +1,8 @@
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-from dotenv import load_dotenv
 import os
+import spotipy
+from dotenv import load_dotenv
+from SongInfo import SongInfo
+from spotipy.oauth2 import SpotifyClientCredentials
 
 load_dotenv()
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
@@ -30,13 +31,13 @@ class SpotifyClient:
     def __get_track_info(self, url):
         track_id = url.split('/')[-1].split('?')[0]
         track = self.client.track(track_id)
-        return {
-            'url': track['external_urls']['spotify'],
-            'title': track['name'],
-            'artist': track['artists'][0]['name'],
-            'thumbnail': track['album']['images'][0]['url'],
-            'duration': track['duration_ms'] // 1000
-        }
+        return SongInfo(
+            url=track['external_urls']['spotify'],
+            title=track['name'],
+            artist=track['artists'][0]['name'],
+            thumbnail=track['album']['images'][0]['url'],
+            duration=track['duration_ms'] // 1000
+        )
 
     def __get_playlist_info(self, url):
         playlist_id = url.split('/')[-1].split('?')[0]
@@ -45,13 +46,13 @@ class SpotifyClient:
         return {
             'title': playlist['name'],
             'tracks': [
-                {
-                    'title': track['track']['name'],
-                    'artist': track['track']['artists'][0]['name'],
-                    'url': track['track']['external_urls']['spotify'],
-                    'thumbnail': track['track']['album']['images'][0]['url'],
-                    'duration': track['track']['duration_ms'] // 1000
-                }
+                SongInfo(
+                    title=track['track']['name'],
+                    artist=track['track']['artists'][0]['name'],
+                    url=track['track']['external_urls']['spotify'],
+                    thumbnail=track['track']['album']['images'][0]['url'],
+                    duration=track['track']['duration_ms'] // 1000
+                )
                 for track in tracks
             ]
         }
@@ -63,13 +64,13 @@ class SpotifyClient:
         return {
             'title': album['name'],
             'tracks': [
-                {
-                    'title': track['name'],
-                    'artist': track['artists'][0]['name'],
-                    'url': track['external_urls']['spotify'],
-                    'thumbnail': album['images'][0]['url'],
-                    'duration': track['duration_ms'] // 1000
-                }
+                SongInfo(
+                    title=track['name'],
+                    artist=track['artists'][0]['name'],
+                    url=track['external_urls']['spotify'],
+                    thumbnail=album['images'][0]['url'],
+                    duration=track['duration_ms'] // 1000
+                )
                 for track in tracks
             ]
         }

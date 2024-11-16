@@ -5,8 +5,8 @@ import asyncio
 import discord
 import requests
 import collections
+from SongInfo import SongInfo
 from discord.ext import commands
-from dataclasses import dataclass
 from ControlView import SerenadikView
 from SpotipyRequirements import SpotifyClient
 
@@ -24,14 +24,6 @@ URL_REGEX = re.compile(
     )
 
 class SerenadikBot(commands.Cog):
-
-    @dataclass
-    class _SongInfo:
-        url: str
-        title: str
-        duration: str
-        thumbnail: str
-        link: str
 
     _blacklisted_users = set()
 
@@ -98,25 +90,29 @@ class SerenadikBot(commands.Cog):
         if search and 'entries' in info:
             info = info['entries'][0]
 
-        return self._SongInfo(
-            info['url'], 
-            info['title'], 
-            info['duration'], 
-            info['thumbnail'], 
-            info['webpage_url']
+        return SongInfo(
+            url=info['url'], 
+            title=info['title'], 
+            duration=info['duration'], 
+            thumbnail=info['thumbnail'], 
+            link=info['webpage_url']
         )
+
+    def __configure_append_method(self, queue, entries, force):
+        append_method = queue.append
+
+        if force:
+            return queue.appendleft, reversed(entries)
+                
+        return append_method, entries
 
     async def __add_playlist_to_queue(self, ctx, url, queue, force=False):
         try:
             playlist_info = self.ydl_ext.extract_info(url, download=False)
             total_songs = len(playlist_info['entries'])
             playlist_title = playlist_info.get('title', 'Mix Youtube') 
-            playlist_entries = playlist_info['entries']
-            append_method = queue.append
-
-            if force:
-                playlist_entries = reversed(playlist_entries)
-                append_method = queue.appendleft
+            # playlist_entries = playlist_info['entries']
+            append_method, playlist_entries = self.__configure_append_method(queue, playlist_info['entries'], force)
 
             for entry in playlist_entries:
                 append_method(entry['url'])
@@ -156,7 +152,6 @@ class SerenadikBot(commands.Cog):
                 await self.__add_playlist_to_queue(ctx, url, queue, force)
 
             else:
-                print(1)
                 await self.__add_song_to_queue(ctx, url, queue, is_link, force)
 
     async def __handle_spotify_url(self, ctx, url, queue, force):
@@ -170,29 +165,27 @@ class SerenadikBot(commands.Cog):
             await self.__add_spotify_album(ctx, url, queue, force)
 
     async def __add_spotify_track(self, ctx, url, queue, force):
-            spotify_info = self.spotify_client.get_track_info(url)
-            search_query = f"{spotify_info['title']} {spotify_info['artist']}"
+        spotify_info = self.spotify_client.get_track_info(url)
+        search_query = f"{ spotify_info.title } { spotify_info.artist }"
 
-            await self.__add_song_to_queue(ctx, search_query, queue, None, force)
+        await self.__add_song_to_queue(ctx, search_query, queue, None, force)
+
+    def __add_spotify_songs_to_queue(self, songs, append_method):
+        for song in songs:
+            youtube_url = f"{ song.title } { song.artist }"
+            append_method(youtube_url)
 
     async def __add_spotify_playlist(self, ctx, url, queue, force):
         playlist_info = self.spotify_client.get_playlist_info(url)
         total_tracks = len(playlist_info['tracks'])
         playlist_title = playlist_info.get('title', 'Spotify Playlist')
-        playlist_tracks = playlist_info['tracks']
-        append_method = queue.append
+        append_method, playlist_tracks = self.__configure_append_method(queue, playlist_info['tracks'], force)
 
-        if force:
-            playlist_tracks = reversed(playlist_tracks)
-            append_method = queue.appendleft
-
-        for track in playlist_tracks:
-            youtube_url = track['title'] + ' ' + track['artist']
-            append_method(youtube_url)
+        self.__add_spotify_songs_to_queue(playlist_tracks, append_method)
 
         embed = discord.Embed(
             title=f" (♡μ_μ) **Spotify Playlist added {'to the top' if force else 'to the end'}** :inbox_tray:",
-            description=f"Title: **[{playlist_title}]({url})**\n Song count: **{total_tracks}**",
+            description=f"Title: **[{ playlist_title }]({ url })**\n Song count: **{ total_tracks }**",
             color=discord.Color.blue()
         )
         await ctx.send(embed=embed)
@@ -201,26 +194,17 @@ class SerenadikBot(commands.Cog):
         album_info = self.spotify_client.get_album_info(url)
         total_tracks = len(album_info['tracks'])
         album_title = album_info.get('title', 'Spotify Album')
-        album_tracks = album_info['tracks']
-        append_method = queue.append
+        append_method, album_tracks = self.__configure_append_method(queue, album_info['tracks'], force)
 
-        if force:
-            album_tracks = reversed(album_tracks)
-            append_method = queue.appendleft
-
-        for track in album_tracks:
-            youtube_url = track['title'] + ' ' + track['artist']
-            append_method(youtube_url)
+        self.__add_spotify_songs_to_queue(album_tracks, append_method)
 
         embed = discord.Embed(
             title=f" (♡μ_μ) **Spotify Album added {'to the top' if force else 'to the end'}** :inbox_tray:",
-            description=f"Title: **[{album_title}]({url})**\n Song count: **{total_tracks}**",
+            description=f"Title: **[{ album_title }]({ url })**\n Song count: **{ total_tracks }**",
             color=discord.Color.blue()
         )
         await ctx.send(embed=embed)
-                
-# виправити ймовірність не коректного посилання
-
+    
     @commands.command()
     async def play(self, ctx, *, url):
         await ctx.message.delete()
@@ -256,7 +240,7 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     async def __prepare_song_info(self, queue):
-        if not isinstance(queue[0], self._SongInfo):
+        if not isinstance(queue[0], SongInfo):
             try:
                 is_link = re.match(URL_REGEX, queue[0])
                 queue[0] = self.__extract_song_info(queue[0], not is_link)
