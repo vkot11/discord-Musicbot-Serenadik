@@ -47,9 +47,11 @@ class SerenadikBot(commands.Cog):
         self.client.add_check(self.__globally_block)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
 
+    @staticmethod
     def ban_user(user_id: str):
         SerenadikBot._blacklisted_users.add(user_id)
     
+    @staticmethod
     def unban_user(user_id: str):
         SerenadikBot._blacklisted_users.discard(user_id)
         
@@ -259,7 +261,8 @@ class SerenadikBot(commands.Cog):
     async def __prepare_video_info(self, queue):
         if not isinstance(queue[0], self._VideoInfo):
             try:
-                queue[0] = self.__extract_video_info(queue[0])
+                is_link = re.match(URL_REGEX, queue[0])
+                queue[0] = self.__extract_video_info(queue[0], not is_link)
             except Exception as e:
                 print(f"Error processing video: {str(e)}")
                 queue.popleft()
@@ -452,7 +455,45 @@ class SerenadikBot(commands.Cog):
             self.manually_stopped_flags[guild_id] = True
             ctx.voice_client.stop()
             await ctx.send("Stopped the music and cleared the queue 🛑")
-    
+
+    async def __play_radio(self, ctx, url):
+        await ctx.message.delete()
+
+        voice_channel = ctx.author.voice.channel if ctx.author.voice else None
+        
+        if not voice_channel:
+            await ctx.send("You're not in a voice channel!")
+            return False
+        
+        if not ctx.voice_client:
+            await voice_channel.connect()
+
+        if not ctx.voice_client.is_playing():
+            source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
+            ctx.voice_client.play(source)
+            return True
+            
+        return False
+        
+    @commands.command()
+    async def radio(self, ctx, *, url):
+        if await self.__play_radio(ctx, url):
+            embed = discord.Embed(
+                title=" |◔◡◉| **Radio Station** :loud_sound:",
+                color=discord.Color.orange()
+            )
+            await ctx.send(embed=embed)
+
+    @commands.command()
+    async def osu(self, ctx):
+        if await self.__play_radio(ctx, 'https://radio.yas-online.net/listen/osustation'):
+            embed = discord.Embed(
+                title=" q(❂‿❂)p **Osu Radio Station** :loud_sound:",
+                color=discord.Color.pink()
+            )
+            embed.set_author(name="osu!", icon_url="https://scontent-dus1-1.xx.fbcdn.net/v/t39.30808-6/296301322_155908430430719_4976778868501739810_n.png?_nc_cat=110&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=GJy0hFvjXI4Q7kNvgH4_XhI&_nc_zt=23&_nc_ht=scontent-dus1-1.xx&_nc_gid=AHro3iBKVU5ndcLssrTBPj5&oh=00_AYCa51c-JkiZ4JXHWuVD7IrRzBypapelVlB4UJhL60HZjg&oe=673DCEB2")
+            await ctx.send(embed=embed)
+
     @commands.Cog.listener()
     async def on_voice_state_update(self, member):
         voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
