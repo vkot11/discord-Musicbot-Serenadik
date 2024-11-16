@@ -6,3 +6,4 @@ env
 LICENSE
 discord-bot.bat
 blacklist
+.cache
