@@ -1,7 +1,9 @@
 import re
 import time
 import yt_dlp
+import asyncio
 import discord
+import requests
 import collections
 from discord.ext import commands
 from dataclasses import dataclass
@@ -446,6 +448,31 @@ class SerenadikBot(commands.Cog):
             ctx.voice_client.stop()
             await ctx.send("Stopped the music and cleared the queue 🛑")
 
+    def get_current_radio_song(self, url):
+        headers = {
+            "Icy-MetaData": "1"
+        }
+
+        try:
+            response = requests.get(url, headers=headers, stream=True, timeout=5)
+            
+            if not response.headers.get("icy-metaint"):
+                return ""
+
+            metaint = int(response.headers["icy-metaint"])
+            response.raw.read(metaint)
+            metadata = response.raw.read(255).split(b"StreamTitle='")[1]
+            stream_title = metadata.split(b"';")[0].decode("utf-8")
+            
+            title = re.sub(r"^\d+\s*", "", stream_title)
+            title = title.replace(".mp3", "").strip()
+
+            return title
+            
+        except Exception as e:
+            print(f"Error: {e}")
+            return ""
+
     async def __play_radio(self, ctx, url):
         await ctx.message.delete()
 
@@ -464,25 +491,50 @@ class SerenadikBot(commands.Cog):
             return True
             
         return False
-        
+    
+    async def __update_radio_message(self, ctx, embed, message, url):
+        while ctx.voice_client and ctx.voice_client.is_playing():
+            try:
+                await asyncio.sleep(10)
+                
+                if not ctx.voice_client:
+                    break
+                
+                song_title = self.get_current_radio_song(url)
+                embed.description = f"Now Playing: **{ song_title }**"
+                await message.edit(embed=embed)
+                
+            except Exception as e:
+                print(f"Error updating radio message: {e}")
+                break
+
     @commands.command()
     async def radio(self, ctx, *, url):
         if await self.__play_radio(ctx, url):
+            song_title = self.get_current_radio_song(url)
             embed = discord.Embed(
                 title=" |◔◡◉| **Radio Station** :loud_sound:",
+                description=f"Now Playing: **{ song_title }**",
                 color=discord.Color.orange()
             )
-            await ctx.send(embed=embed)
+            message = await ctx.send(embed=embed)
+            
+            asyncio.create_task(self.__update_radio_message(ctx, embed, message, url))
 
     @commands.command()
     async def osu(self, ctx):
-        if await self.__play_radio(ctx, 'https://radio.yas-online.net/listen/osustation'):
+        osu_radio_url = 'https://radio.yas-online.net/listen/osustation'
+        if await self.__play_radio(ctx, osu_radio_url):
+            song_title = self.get_current_radio_song(osu_radio_url)
             embed = discord.Embed(
                 title=" q(❂‿❂)p **Osu Radio Station** :loud_sound:",
+                description=f"Now Playing: **{ song_title }**",
                 color=discord.Color.pink()
             )
             embed.set_author(name="osu!", icon_url="https://scontent-dus1-1.xx.fbcdn.net/v/t39.30808-6/296301322_155908430430719_4976778868501739810_n.png?_nc_cat=110&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=GJy0hFvjXI4Q7kNvgH4_XhI&_nc_zt=23&_nc_ht=scontent-dus1-1.xx&_nc_gid=AHro3iBKVU5ndcLssrTBPj5&oh=00_AYCa51c-JkiZ4JXHWuVD7IrRzBypapelVlB4UJhL60HZjg&oe=673DCEB2")
-            await ctx.send(embed=embed)
+            message = await ctx.send(embed=embed)
+            
+            asyncio.create_task(self.__update_radio_message(ctx, embed, message, osu_radio_url))
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member):
