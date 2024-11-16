@@ -1,7 +1,7 @@
 import os
 import spotipy
 from dotenv import load_dotenv
-from SongInfo import SongInfo
+from song_info import SongInfo
 from spotipy.oauth2 import SpotifyClientCredentials
 
 load_dotenv()

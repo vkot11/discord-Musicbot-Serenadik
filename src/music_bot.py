@@ -5,10 +5,10 @@ import asyncio
 import discord
 import requests
 import collections
-from SongInfo import SongInfo
+from song_info import SongInfo
 from discord.ext import commands
-from ControlView import SerenadikView
-from SpotipyRequirements import SpotifyClient
+from control_view import SerenadikView
+from spotify import SpotifyClient
 
 
 FFMPEG_OPTIONS = {'options': '-vn', 
