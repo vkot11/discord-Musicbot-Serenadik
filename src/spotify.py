@@ -2,6 +2,7 @@ import os
 import spotipy
 from dotenv import load_dotenv
 from song_info import SongInfo
+from playlist_info import PlaylistInfo
 from spotipy.oauth2 import SpotifyClientCredentials
 
 load_dotenv()
@@ -43,9 +44,10 @@ class SpotifyClient:
         playlist_id = url.split('/')[-1].split('?')[0]
         playlist = self.client.playlist(playlist_id)
         tracks = playlist['tracks']['items']
-        return {
-            'title': playlist['name'],
-            'tracks': [
+        return PlaylistInfo(
+            title=playlist['name'],
+            total_songs=len(tracks),
+            songs=[
                 SongInfo(
                     title=track['track']['name'],
                     artist=track['track']['artists'][0]['name'],
@@ -55,15 +57,16 @@ class SpotifyClient:
                 )
                 for track in tracks
             ]
-        }
+        )
 
     def __get_album_info(self, url):
         album_id = url.split('/')[-1].split('?')[0]
         album = self.client.album(album_id)
         tracks = album['tracks']['items']
-        return {
-            'title': album['name'],
-            'tracks': [
+        return PlaylistInfo(
+            title=album['name'],
+            total_songs=len(tracks),
+            songs=[
                 SongInfo(
                     title=track['name'],
                     artist=track['artists'][0]['name'],
@@ -73,4 +76,4 @@ class SpotifyClient:
                 )
                 for track in tracks
             ]
-        }
+        )
