@@ -1,3 +1,4 @@
+import queue
 import re
 import time
 import asyncio
@@ -163,11 +164,21 @@ class SerenadikBot(commands.Cog):
 
     @commands.command()
     async def previous(self, ctx):
-        if ctx.voice_client and ctx.voice_client.is_playing():
-            if not await self.queue_manager.add_prev_to_queue(ctx):
-                return
-            print("PREV")
+        if not ctx.voice_client:   
+            return
+        
+        queue_playing = ctx.voice_client.is_playing()
+
+        if not await self.queue_manager.add_prev_to_queue(ctx, not queue_playing):
+            return
+        
+        print("PREV")
+        
+        if queue_playing:
             ctx.voice_client.stop()
+                
+        else:
+            await self.play_next(ctx)
 
     @commands.command()
     async def pause(self, ctx):

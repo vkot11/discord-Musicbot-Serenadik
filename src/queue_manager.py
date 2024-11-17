@@ -92,13 +92,17 @@ class QueueManager:
         embed = EmbedCreator.create_mix_added_embed(album_info.title, url, album_info.total_songs, force, 'Album')
         await ctx.send(embed=embed)
         
-    async def add_prev_to_queue(self, ctx):
+    async def add_prev_to_queue(self, ctx, queue_ended):
         queue, history_queue = self.get_queues(ctx.guild.id)
+
+        if queue_ended:
+            queue.appendleft(history_queue.pop())
+            return True
 
         if not history_queue or len(history_queue) < 2:
             embed = EmbedCreator.create_no_past_songs_embed()
             await ctx.send(embed=embed)
             return False
-        
+
         queue.extendleft([history_queue.pop(), history_queue.pop()])
         return True

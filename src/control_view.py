@@ -9,7 +9,7 @@ class SerenadikView(discord.ui.View):
     @discord.ui.button(label="⏮ Previous", style=discord.ButtonStyle.primary)
     async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
-        if self.ctx.voice_client and self.ctx.voice_client.is_playing():
+        if self.ctx.voice_client:
             await interaction.response.defer()
             await self.bot.cogs['SerenadikBot'].previous(self.ctx)
 

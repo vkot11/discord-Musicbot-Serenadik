@@ -3,8 +3,6 @@ import yt_dlp
 from song_info import SongInfo
 from playlist_info import PlaylistInfo
 
-import time
-
 class YdlProcessor:
     cache_size = 100
 
@@ -35,15 +33,10 @@ class YdlProcessor:
         if search:
             url = f"ytsearch:{url}"
 
-        t1 = time.time()
-
         info = self.__cached_extract_info(url)
 
         if search and 'entries' in info:
             info = info['entries'][0]
-
-        t2 = time.time()
-        print(f"exec time: { t2-t1 }")
 
         return SongInfo(
             url=info['url'],
