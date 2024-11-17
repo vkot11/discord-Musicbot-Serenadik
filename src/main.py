@@ -3,7 +3,7 @@ import asyncio
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
-from MusicBot import SerenadikBot
+from music_bot import SerenadikBot
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
