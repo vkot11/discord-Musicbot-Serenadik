@@ -58,7 +58,7 @@ class QueueManager:
             for entry in playlist_entries:
                 append_method(entry['url'])
 
-            embed = EmbedCreator.create_playlist_added_embed(playlist_info.title, url, playlist_info.total_songs, force)
+            embed = EmbedCreator.create_mix_added_embed(playlist_info.title, url, playlist_info.total_songs, force, 'Playlist')
             
             await ctx.send(embed=embed)
 
@@ -78,17 +78,19 @@ class QueueManager:
             youtube_url = f"{ track.title } { track.artist }"
             append_method(youtube_url)
 
-        embed = EmbedCreator.create_playlist_added_embed(mix_info.title, url, mix_info.total_songs, force)
-
-        await ctx.send(embed=embed)
-
     async def add_spotify_playlist(self, ctx, url, queue, force):
         playlist_info = self.spotify_client.get_playlist_info(url)
         await self.__add_multiple_spotify_tracks(ctx, url, queue, playlist_info, force)
         
+        embed = EmbedCreator.create_mix_added_embed(playlist_info.title, url, playlist_info.total_songs, force, 'Playlist')
+        await ctx.send(embed=embed)
+        
     async def add_spotify_album(self, ctx, url, queue, force):
         album_info = self.spotify_client.get_album_info(url)
         await self.__add_multiple_spotify_tracks(ctx, url, queue, album_info, force)
+        
+        embed = EmbedCreator.create_mix_added_embed(album_info.title, url, album_info.total_songs, force, 'Album')
+        await ctx.send(embed=embed)
         
     async def add_prev_to_queue(self, ctx):
         queue, history_queue = self.get_queues(ctx.guild.id)

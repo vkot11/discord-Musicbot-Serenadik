@@ -29,15 +29,15 @@ class EmbedCreator:
     def create_radio_embed(title, song_title, color):
         return Embed(
             title=title,
-            description=f"Now Playing: **{song_title}**",
+            description=f"On Live: **{song_title}**",
             color=color
         )
-    
+
     @staticmethod
-    def create_playlist_added_embed(playlist_title, url, total_songs, force):
+    def create_mix_added_embed(title, url, total_songs, force, mix_name):
         return Embed(
-            title=f" (♡μ_μ) **PLaylist added {'to the top' if force else 'to the end'}** :inbox_tray:",
-            description=f"Title: **[{ playlist_title }]({ url })**\n Song count: **{ total_songs }**",
+            title=f" (♡μ_μ) **{ mix_name } added {'to the top' if force else 'to the end'}** :inbox_tray:",
+            description=f"Title: **[{ title }]({ url })**\n Song count: **{ total_songs }**",
             color=Color.blue()
         )
 

@@ -2,7 +2,6 @@ import re
 import time
 import asyncio
 import discord
-from song_info import SongInfo
 from discord.ext import commands
 from queue_manager import QueueManager
 from control_view import SerenadikView
