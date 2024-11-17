@@ -1,23 +1,49 @@
+from functools import lru_cache
 import yt_dlp
 from song_info import SongInfo
 from playlist_info import PlaylistInfo
-from constants import YDL_OPTIONS, YDL_OPTIONS_EXT
+
+import time
 
 class YdlProcessor:
-    def __init__(self):
-        self.youtube_search_cache = {}
+    cache_size = 100
+
+    def __init__(self, cache_size=100):
+        YDL_OPTIONS = {
+            'format': 'bestaudio',
+            'noplaylist': True,
+            'nocheckcertificate': True,
+            'no_color': True,
+            'age_limit': 0
+        }
+
+        YDL_OPTIONS_EXT = {
+            'extract_flat': 'in_playlist',  
+            'skip_download': True,          
+            'quiet': True                   
+        }
+
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)
+        YdlProcessor.cache_size = cache_size
         
+    @lru_cache(maxsize=cache_size)
+    def __cached_extract_info(self, url):
+        return self.ydl.extract_info(url, download=False)
+
     def extract_song_info(self, url, search=False):
         if search:
-            if url in self.youtube_search_cache:
-                return self.youtube_search_cache[url]
             url = f"ytsearch:{url}"
-        
-        info = self.ydl.extract_info(url, download=False)
+
+        t1 = time.time()
+
+        info = self.__cached_extract_info(url)
+
         if search and 'entries' in info:
             info = info['entries'][0]
+
+        t2 = time.time()
+        print(f"exec time: { t2-t1 }")
 
         return SongInfo(
             url=info['url'],

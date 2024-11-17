@@ -120,7 +120,6 @@ class SerenadikBot(commands.Cog):
         if not queue and not history_queue and ctx.voice_client.is_playing():
             await ctx.send(embed=EmbedCreator.create_error_embed())
 
-
     @commands.command()
     async def play(self, ctx, *, url):
         await ctx.message.delete()
@@ -132,7 +131,7 @@ class SerenadikBot(commands.Cog):
         
         if not ctx.voice_client:
             await voice_channel.connect()
-
+            
         await self.__add_to_queue(ctx, url)
 
         if not ctx.voice_client.is_playing():

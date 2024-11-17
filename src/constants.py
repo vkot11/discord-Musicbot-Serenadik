@@ -1,14 +1,5 @@
 import re
 
-YDL_OPTIONS = {
-    'format': 'bestaudio'
-}
-
-YDL_OPTIONS_EXT = {
-    'extract_flat': 'in_playlist',  
-    'skip_download': True,          
-    'quiet': True                   
-}
 
 FFMPEG_OPTIONS = {
     'options': '-vn', 
