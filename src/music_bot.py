@@ -3,6 +3,7 @@ import re
 import time
 import asyncio
 import discord
+from random import random
 from discord.ext import commands
 from queue_manager import QueueManager
 from control_view import SerenadikView
@@ -156,11 +157,23 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     @commands.command()
+    async def shuffle(self, ctx):
+        queue, _ = self.queue_manager.get_queues(ctx.guild.id)
+        
+        if not queue:
+            await ctx.send("Queue is empty, nothing to shuffle")
+            return
+        
+        shuffled_queue = random.shuffle(queue)
+        self.queue_manager.set_queue(ctx.guild.id, shuffled_queue)
+        
+        await ctx.send("The queue shuffled ♪(┌・。・)┌")
+
+    @commands.command()
     async def skip(self, ctx):
         if ctx.voice_client and ctx.voice_client.is_playing():
             print("SKIP")
             ctx.voice_client.stop()
-            #await ctx.send("The song is skipped ⏭")
 
     @commands.command()
     async def previous(self, ctx):
@@ -253,8 +266,14 @@ class SerenadikBot(commands.Cog):
         print(f"backward by {seconds} seconds")
         print(f"current_position: {current_position}")
         print(f"target_time: {target_time}")
+        
         await self.seek(ctx, target_time)
         self.songs_start_time[ctx.guild.id] = time.time() - target_time
+
+    @commands.command()
+    async def shuffle(self, ctx):
+        self.queue_manager.shuffle_queue(ctx.guild.id)
+        await ctx.send("The queue was shuffled! ♪(┌・。・)┌")
 
     @commands.command()
     async def stop(self, ctx):

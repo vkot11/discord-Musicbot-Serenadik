@@ -19,8 +19,6 @@ class SerenadikView(discord.ui.View):
         if not self.ctx.voice_client:
             return
 
-        # await interaction.response.defer()
-
         if self.ctx.voice_client.is_playing():
             await self.bot.cogs['SerenadikBot'].pause(self.ctx)
             message = "The song is paused ⏸️"
@@ -35,12 +33,19 @@ class SerenadikView(discord.ui.View):
 
         if self.ctx.voice_client and self.ctx.voice_client.is_playing():
             await interaction.response.defer()
-            # await self.bot.loop.create_task(self.bot.cogs['SerenadikBot'].skip(self.ctx))
             await self.bot.cogs['SerenadikBot'].skip(self.ctx)
+
+    @discord.ui.button(label="🔀 Shuffle", style=discord.ButtonStyle.secondary)
+    async def shuffle_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.ctx.voice_client:
+            return
+
+        if self.ctx.voice_client.is_playing():
+            await interaction.response.defer()
+            await self.bot.cogs['SerenadikBot'].shuffle(self.ctx)
 
     @discord.ui.button(label="🔄 Loop", style=discord.ButtonStyle.secondary)
     async def loop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-
         if not self.ctx.voice_client:
             return
 
@@ -50,9 +55,7 @@ class SerenadikView(discord.ui.View):
 
     @discord.ui.button(label="🛑 Stop", style=discord.ButtonStyle.danger)
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-
         if self.ctx.voice_client:
             await interaction.response.defer()
             await self.bot.cogs['SerenadikBot'].stop(self.ctx)
-            #await interaction.response.send_message("Stopped the music and cleared the queue 🛑", ephemeral=False)
             

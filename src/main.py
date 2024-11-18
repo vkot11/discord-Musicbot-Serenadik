@@ -7,6 +7,8 @@ from music_bot import SerenadikBot
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+GREEN = "\033[92m"
+RESET = "\033[0m"
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -43,7 +45,7 @@ async def async_input(prompt: str = ""):
     return await loop.run_in_executor(None, input, prompt)
 
 async def io():
-    print("Bot is active")
+    print(f"{GREEN}Bot is Factive{RESET}")
     while True:
         user_input = await async_input(": ")
         parts = user_input.split(" ")
@@ -54,7 +56,7 @@ async def io():
         if command_func:
             command_func(args)
         else:
-            print("Unknown command")
+            print(f"{GREEN}Unknown command{RESET}")
         
 async def run_async():
     await asyncio.gather(

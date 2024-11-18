@@ -1,4 +1,5 @@
 ﻿import re
+import random
 import collections
 from song_info import SongInfo
 from constants import URL_REGEX
@@ -25,6 +26,11 @@ class QueueManager:
         queue.clear()
         history_queue.clear()
         
+    def shuffle_queue(self, guild_id):
+        queue, _ = self.get_queues(guild_id)
+        if queue:
+            random.shuffle(queue)
+
     async def prepare_song_info(self, queue):
         if not isinstance(queue[0], SongInfo):
             try:
