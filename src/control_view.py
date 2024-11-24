@@ -16,6 +16,14 @@ class SerenadikView(discord.ui.View):
     @discord.ui.button(label="⏯️ Pause | Resume", style=discord.ButtonStyle.success)
     async def pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
 
+# testing bugs
+        voice_channel = interaction.user.voice.channel if interaction.user.voice else None
+        bot_voice_channel = interaction.guild.voice_client.channel if interaction.guild.voice_client else None
+
+        if not voice_channel or voice_channel != bot_voice_channel:
+            await interaction.response.send_message("You are loser", ephemeral=True)
+            return
+
         if not self.ctx.voice_client:
             return
 
