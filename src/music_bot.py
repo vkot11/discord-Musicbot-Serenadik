@@ -1,4 +1,3 @@
-import queue
 import re
 import time
 import asyncio
@@ -321,21 +320,41 @@ class SerenadikBot(commands.Cog):
             embed_title = " q(❂‿❂)p **Osu Radio Station** :loud_sound:"
             song_title = self.radio_handler.get_current_radio_song(osu_radio_url)
             embed = EmbedCreator.create_radio_embed(embed_title, song_title, discord.Color.pink())
-            embed.set_author(name="osu!", icon_url="https://scontent-dus1-1.xx.fbcdn.net/v/t39.30808-6/296301322_155908430430719_4976778868501739810_n.png?_nc_cat=110&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=GJy0hFvjXI4Q7kNvgH4_XhI&_nc_zt=23&_nc_ht=scontent-dus1-1.xx&_nc_gid=AHro3iBKVU5ndcLssrTBPj5&oh=00_AYCa51c-JkiZ4JXHWuVD7IrRzBypapelVlB4UJhL60HZjg&oe=673DCEB2")
+            embed.set_author(name="osu!", icon_url="https://upload.wikimedia.org/wikipedia/en/2/29/Osu%21_logo_2024%2C_no_dot.png?20240518000302")
             
             message = await ctx.send(embed=embed)
             
             asyncio.create_task(self.radio_handler.update_radio_message(ctx, embed, message, osu_radio_url))
 
-    @commands.Cog.listener()
-    async def on_voice_state_update(self, member):
-        voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
+    # @commands.Cog.listener()
+    # async def on_voice_state_update(self, member):
+    #     voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
         
-        if voice_client and len(voice_client.channel.members) == 1:
-            await voice_client.disconnect()
-            self.queue_manager.clear_queues(member.guild.id)
-            print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
+    #     if voice_client and len(voice_client.channel.members) == 1:
+    #         await voice_client.disconnect()
+    #         self.queue_manager.clear_queues(member.guild.id)
+    #         print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
     
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        if member == self.client.user:
+            if before.channel != after.channel:
+                if after.channel:
+                    voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
+                    if voice_client and voice_client.is_playing():
+                        voice_client.pause()
+                        await asyncio.sleep(0.5)
+                        voice_client.resume()
+
+    # temporary command to fix bugs 
+    @commands.command()
+    async def playlist_info(self, ctx):
+        queue, _ = self.queue_manager.get_queues(ctx.guild.id)
+        queue_length = len(queue)
+
+        await ctx.send(f"🎶 Currently, there are **{queue_length}** songs in the playlist!")
+
+
     @commands.command()
     async def info(self, ctx):
         await ctx.send(embed=EmbedCreator.create_info_embed())
