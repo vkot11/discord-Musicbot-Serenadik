@@ -326,17 +326,19 @@ class SerenadikBot(commands.Cog):
             
             asyncio.create_task(self.radio_handler.update_radio_message(ctx, embed, message, osu_radio_url))
 
-    # @commands.Cog.listener()
-    # async def on_voice_state_update(self, member):
-    #     voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
-        
-    #     if voice_client and len(voice_client.channel.members) == 1:
-    #         await voice_client.disconnect()
-    #         self.queue_manager.clear_queues(member.guild.id)
-    #         print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
-    
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
+        if voice_client and voice_client.channel:
+            await asyncio.sleep(10)
+
+            if len(voice_client.channel.members) == 1:
+                await voice_client.disconnect()
+                self.queue_manager.clear_queues(member.guild.id)
+                print(f"Bot left the channel in guild {member.guild.id} after 10 sec of being alone")
+
+    @commands.Cog.listener()
+    async def on_voice_channel_update(self, member, before, after):
         if member == self.client.user:
             if before.channel != after.channel:
                 if after.channel:
