@@ -7,3 +7,5 @@ LICENSE
 discord-bot.bat
 blacklist
 .cache
+bin
+venv/

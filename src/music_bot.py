@@ -1,3 +1,4 @@
+import os
 import re
 import time
 import asyncio
@@ -74,7 +75,13 @@ class SerenadikBot(commands.Cog):
             await self.queue_manager.add_spotify_album(ctx, url, queue, force)
 
     async def __play_audio(self, ctx, url, ffmpeg_options):
-        source = await discord.FFmpegOpusAudio.from_probe(url, **ffmpeg_options)
+        # source = await discord.FFmpegOpusAudio.from_probe(url, **ffmpeg_options)
+        ffmpeg_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../bin/ffmpeg.exe"))
+        source = await discord.FFmpegOpusAudio.from_probe(
+            url,
+            executable=ffmpeg_path,
+            **ffmpeg_options
+        )
         ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
         self.songs_start_time[ctx.guild.id] = time.time()
 
