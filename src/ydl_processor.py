@@ -12,7 +12,7 @@ class YdlProcessor:
             'noplaylist': True,
             'nocheckcertificate': True,
             'no_color': True,
-            'age_limit': 0
+            'verbose': True,
         }
 
         YDL_OPTIONS_EXT = {

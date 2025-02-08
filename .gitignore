@@ -9,3 +9,4 @@ blacklist
 .cache
 bin
 venv/
+todolist.txt
