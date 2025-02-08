@@ -1,9 +1,10 @@
-import queue
+import os
 import re
 import time
 import asyncio
 import discord
-from random import random
+import datetime
+import color_palette as cpl
 from discord.ext import commands
 from queue_manager import QueueManager
 from control_view import SerenadikView
@@ -35,9 +36,16 @@ class SerenadikBot(commands.Cog):
         
     async def __globally_block(self, ctx):
         if str(ctx.author.id) in SerenadikBot._blacklisted_users:
-            await ctx.send("❀◕ ‿ ◕❀ The bot owner has banned you from using any commands")
+            await ctx.send("**❀◕ ‿ ◕❀ The bot owner has banned you from using any commands**")
             return False
         return True
+
+    def user_interaction_info(self, ctx, user, color: str, command: str):
+        if not user:
+            user = ctx.author
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"{cpl.BG_COLORS["Bright Black"]}{timestamp}{cpl.RESET}{cpl.COLORS['Cyan']} | {user.display_name} | {user.name} | {user.id} |{cpl.COLORS[color]} command: {command}{cpl.RESET}")
 
     def get_looped_song(self, guild_id):
         if guild_id not in self.looped_songs:
@@ -75,22 +83,44 @@ class SerenadikBot(commands.Cog):
             await self.queue_manager.add_spotify_album(ctx, url, queue, force)
 
     async def __play_audio(self, ctx, url, ffmpeg_options):
-        source = await discord.FFmpegOpusAudio.from_probe(url, **ffmpeg_options)
-        ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
-        self.songs_start_time[ctx.guild.id] = time.time()
+        if ctx.voice_client is None:
+            if ctx.author.voice and ctx.author.voice.channel:
+                await ctx.author.voice.channel.connect()
+            else:
+                await ctx.send("TEST: YOU MUST BE IN THE VOICE CHAT!!")
+                return
 
-    async def play_next(self, ctx):
+        ffmpeg_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../bin/ffmpeg.exe"))
+        source = await discord.FFmpegOpusAudio.from_probe(
+            url,
+            executable=ffmpeg_path,
+            **ffmpeg_options
+        )
+        if ctx.voice_client:
+            ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
+            self.songs_start_time[ctx.guild.id] = time.time()
+        else:
+            await ctx.send("TEST: MUSIC BOT IS NOT PLAYING, MB BOT IS NOT CONNECTED")
+
+    async def play_next(self, ctx, user=None):
         guild_id = ctx.guild.id
         manually_stopped = self.get_manually_stopped(guild_id)
         
         if manually_stopped:
-            print("manually_stopped")
+            self.user_interaction_info(ctx, user, "Red", "STOP")
             self.manually_stopped_flags[guild_id] = False
             return
 
         looped_song_info = self.get_looped_song(guild_id)
 
         if looped_song_info is not None:
+            if ctx.voice_client is None:
+                if ctx.author.voice and ctx.author.voice.channel:
+                    await ctx.author.voice.channel.connect()
+                else:
+                    await ctx.send("TEST: I AM NOT HERE")
+                    return
+                    
             await self.__play_audio(ctx, looped_song_info.url, FFMPEG_OPTIONS)
             return
 
@@ -106,6 +136,13 @@ class SerenadikBot(commands.Cog):
 
         song_info = queue.popleft()
         history_queue.append(song_info)
+
+        if ctx.voice_client is None:
+            if ctx.author.voice and ctx.author.voice.channel:
+                await ctx.author.voice.channel.connect()
+            else:
+                await ctx.send("TEST: I AM NOT HERE")
+                return
 
         await self.__play_audio(ctx, song_info.url, FFMPEG_OPTIONS)
         
@@ -133,7 +170,7 @@ class SerenadikBot(commands.Cog):
         
         if not ctx.voice_client:
             await voice_channel.connect()
-            
+        
         await self.__add_to_queue(ctx, url)
 
         if not ctx.voice_client.is_playing():
@@ -157,26 +194,13 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     @commands.command()
-    async def shuffle(self, ctx):
-        queue, _ = self.queue_manager.get_queues(ctx.guild.id)
-        
-        if not queue:
-            await ctx.send("Queue is empty, nothing to shuffle")
-            return
-        
-        shuffled_queue = random.shuffle(queue)
-        self.queue_manager.set_queue(ctx.guild.id, shuffled_queue)
-        
-        await ctx.send("The queue shuffled ♪(┌・。・)┌")
-
-    @commands.command()
-    async def skip(self, ctx):
+    async def skip(self, ctx, user=None):
         if ctx.voice_client and ctx.voice_client.is_playing():
-            print("SKIP")
+            self.user_interaction_info(ctx, user, "Bright Red", "SKIP")
             ctx.voice_client.stop()
 
     @commands.command()
-    async def previous(self, ctx):
+    async def previous(self, ctx, user=None):
         if not ctx.voice_client:   
             return
         
@@ -185,7 +209,7 @@ class SerenadikBot(commands.Cog):
         if not await self.queue_manager.add_prev_to_queue(ctx, not queue_playing):
             return
         
-        print("PREV")
+        self.user_interaction_info(ctx, user, "Bright Magenta", "PREV")
         
         if queue_playing:
             ctx.voice_client.stop()
@@ -194,19 +218,19 @@ class SerenadikBot(commands.Cog):
             await self.play_next(ctx)
 
     @commands.command()
-    async def pause(self, ctx):
+    async def pause(self, ctx, user):
         if ctx.voice_client and ctx.voice_client.is_playing():
             ctx.voice_client.pause()
-            # await ctx.send("The song is paused ⏸️")
+            self.user_interaction_info(ctx, user, "Green", "PAUSE")
 
     @commands.command()
-    async def resume(self, ctx):
+    async def resume(self, ctx, user):
         if ctx.voice_client and not ctx.voice_client.is_playing():
             ctx.voice_client.resume()
-            # await ctx.send("The song continues to play ⏯️")
+            self.user_interaction_info(ctx, user, "Green", "RESUME")
 
     @commands.command()
-    async def loop(self, ctx):
+    async def loop(self, ctx, user):
         if ctx.voice_client and ctx.voice_client.is_playing():
             guild_id = ctx.guild.id
             loop_disabled = self.get_looped_song(guild_id) is None
@@ -215,7 +239,9 @@ class SerenadikBot(commands.Cog):
                 self.looped_songs[guild_id] = history_queue[-1]
             else:
                 self.looped_songs[guild_id] = None
-                
+            
+            self.user_interaction_info(ctx, user, "Bright Green", "LOOP")
+
             await ctx.send(f"Looping for the current song was { 'enabled' if loop_disabled else 'disabled' } 🔄")
 
     @commands.command()
@@ -253,9 +279,11 @@ class SerenadikBot(commands.Cog):
     async def forward(self, ctx, seconds: int):
         current_position = self.__get_current_playback_time(ctx.guild.id)
         target_time = current_position + seconds
-        print(f"forward by {seconds} seconds")
+
+        print(f"{cpl.COLORS["Yellow"]}forward by {seconds} seconds")
         print(f"current_position: {current_position}")
-        print(f"target_time: {target_time}")
+        print(f"target_time: {target_time}{cpl.RESET}")
+
         await self.seek(ctx, target_time)
         self.songs_start_time[ctx.guild.id] = time.time() - target_time
         
@@ -263,20 +291,23 @@ class SerenadikBot(commands.Cog):
     async def backward(self, ctx, seconds: int):
         current_position = self.__get_current_playback_time(ctx.guild.id)
         target_time = current_position - seconds
-        print(f"backward by {seconds} seconds")
+
+        print(f"{cpl.COLORS["Yellow"]}backward by {seconds} seconds")
         print(f"current_position: {current_position}")
-        print(f"target_time: {target_time}")
+        print(f"target_time: {target_time}{cpl.RESET}")
         
         await self.seek(ctx, target_time)
         self.songs_start_time[ctx.guild.id] = time.time() - target_time
 
     @commands.command()
-    async def shuffle(self, ctx):
+    async def shuffle(self, ctx, user):
         self.queue_manager.shuffle_queue(ctx.guild.id)
+        self.user_interaction_info(ctx, user, "Bright Cyan", "SHUFFLE")
+
         await ctx.send("The queue was shuffled! ♪(┌・。・)┌")
 
     @commands.command()
-    async def stop(self, ctx):
+    async def stop(self, ctx, user):
         if ctx.voice_client:
             guild_id = ctx.guild.id
             self.queue_manager.clear_queues(guild_id)
@@ -321,21 +352,43 @@ class SerenadikBot(commands.Cog):
             embed_title = " q(❂‿❂)p **Osu Radio Station** :loud_sound:"
             song_title = self.radio_handler.get_current_radio_song(osu_radio_url)
             embed = EmbedCreator.create_radio_embed(embed_title, song_title, discord.Color.pink())
-            embed.set_author(name="osu!", icon_url="https://scontent-dus1-1.xx.fbcdn.net/v/t39.30808-6/296301322_155908430430719_4976778868501739810_n.png?_nc_cat=110&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=GJy0hFvjXI4Q7kNvgH4_XhI&_nc_zt=23&_nc_ht=scontent-dus1-1.xx&_nc_gid=AHro3iBKVU5ndcLssrTBPj5&oh=00_AYCa51c-JkiZ4JXHWuVD7IrRzBypapelVlB4UJhL60HZjg&oe=673DCEB2")
+            embed.set_author(name="osu!", icon_url="https://upload.wikimedia.org/wikipedia/en/2/29/Osu%21_logo_2024%2C_no_dot.png?20240518000302")
             
             message = await ctx.send(embed=embed)
             
             asyncio.create_task(self.radio_handler.update_radio_message(ctx, embed, message, osu_radio_url))
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member):
+    async def on_voice_state_update(self, member, before, after):
         voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
-        
-        if voice_client and len(voice_client.channel.members) == 1:
-            await voice_client.disconnect()
-            self.queue_manager.clear_queues(member.guild.id)
-            print(f"Everyone left the channel in guild {member.guild.id}, bot disconnected and queue cleared.")
-    
+        if voice_client and voice_client.channel:
+            await asyncio.sleep(10)
+
+            if len(voice_client.channel.members) == 1:
+                await voice_client.disconnect()
+                self.queue_manager.clear_queues(member.guild.id)
+                print(f"{cpl.COLORS["Yellow"]}Bot left the channel in guild {member.guild.id} after 10 sec of being alone {cpl.RESET}")
+
+    @commands.Cog.listener()
+    async def on_voice_channel_update(self, member, before, after):
+        if member == self.client.user:
+            if before.channel != after.channel:
+                if after.channel:
+                    voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
+                    if voice_client and voice_client.is_playing():
+                        voice_client.pause()
+                        await asyncio.sleep(0.5)
+                        voice_client.resume()
+
+    # temporary command to fix bugs 
+    @commands.command()
+    async def playlist_info(self, ctx):
+        queue, _ = self.queue_manager.get_queues(ctx.guild.id)
+        queue_length = len(queue)
+
+        await ctx.send(f"🎶 Currently, there are **{queue_length}** songs in the playlist!")
+
+
     @commands.command()
     async def info(self, ctx):
         await ctx.send(embed=EmbedCreator.create_info_embed())

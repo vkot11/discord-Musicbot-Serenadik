@@ -12,13 +12,13 @@ class YdlProcessor:
             'noplaylist': True,
             'nocheckcertificate': True,
             'no_color': True,
-            'age_limit': 0
+            'verbose': True,
         }
 
         YDL_OPTIONS_EXT = {
-            'extract_flat': 'in_playlist',  
-            'skip_download': True,          
-            'quiet': True                   
+            'extract_flat': 'in_playlist',
+            'skip_download': True,
+            'quiet': True,
         }
 
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
