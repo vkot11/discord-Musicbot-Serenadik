@@ -4,7 +4,7 @@ import time
 import asyncio
 import discord
 import datetime
-import color_palette as cpl
+# import color_palette as cpl
 from discord.ext import commands
 from queue_manager import QueueManager
 from control_view import SerenadikView
@@ -45,7 +45,7 @@ class SerenadikBot(commands.Cog):
             user = ctx.author
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{cpl.BG_COLORS["Bright Black"]}{timestamp}{cpl.RESET}{cpl.COLORS['Cyan']} | {user.display_name} | {user.name} | {user.id} |{cpl.COLORS[color]} command: {command}{cpl.RESET}")
+       #print(f"{cpl.BG_COLORS["Bright Black"]}{timestamp}{cpl.RESET}{cpl.COLORS['Cyan']} | {user.display_name} | {user.name} | {user.id} |{cpl.COLORS[color]} command: {command}{cpl.RESET}")
 
     def get_looped_song(self, guild_id):
         if guild_id not in self.looped_songs:
@@ -87,13 +87,13 @@ class SerenadikBot(commands.Cog):
             if ctx.author.voice and ctx.author.voice.channel:
                 await ctx.author.voice.channel.connect()
             else:
-                await ctx.send("TEST: YOU MUST BE IN THE VOICE CHAT!!")
+                await ctx.send("TEST: YOU MUST BE IN THE VOICE CHAT!!") 
                 return
 
-        ffmpeg_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../bin/ffmpeg.exe"))
+#        ffmpeg_path = os.path.abspath(os.path.join(,os.path.dirname(__file__), "../bin/ffmpeg.exe"))
         source = await discord.FFmpegOpusAudio.from_probe(
             url,
-            executable=ffmpeg_path,
+#            executable=ffmpeg_path, 
             **ffmpeg_options
         )
         if ctx.voice_client:
@@ -280,9 +280,9 @@ class SerenadikBot(commands.Cog):
         current_position = self.__get_current_playback_time(ctx.guild.id)
         target_time = current_position + seconds
 
-        print(f"{cpl.COLORS["Yellow"]}forward by {seconds} seconds")
+        print(f"forward by {seconds} seconds")
         print(f"current_position: {current_position}")
-        print(f"target_time: {target_time}{cpl.RESET}")
+        print(f"target_time: {target_time}")
 
         await self.seek(ctx, target_time)
         self.songs_start_time[ctx.guild.id] = time.time() - target_time
@@ -292,9 +292,9 @@ class SerenadikBot(commands.Cog):
         current_position = self.__get_current_playback_time(ctx.guild.id)
         target_time = current_position - seconds
 
-        print(f"{cpl.COLORS["Yellow"]}backward by {seconds} seconds")
+        print(f"backward by {seconds} seconds")
         print(f"current_position: {current_position}")
-        print(f"target_time: {target_time}{cpl.RESET}")
+        print(f"target_time: {target_time}")
         
         await self.seek(ctx, target_time)
         self.songs_start_time[ctx.guild.id] = time.time() - target_time
@@ -367,7 +367,7 @@ class SerenadikBot(commands.Cog):
             if len(voice_client.channel.members) == 1:
                 await voice_client.disconnect()
                 self.queue_manager.clear_queues(member.guild.id)
-                print(f"{cpl.COLORS["Yellow"]}Bot left the channel in guild {member.guild.id} after 10 sec of being alone {cpl.RESET}")
+                print(f"Bot left the channel in guild {member.guild.id} after 10 sec of being alone ")
 
     @commands.Cog.listener()
     async def on_voice_channel_update(self, member, before, after):

@@ -10,3 +10,4 @@ blacklist
 bin
 venv/
 todolist.txt
+cook_convert.txt
