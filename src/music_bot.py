@@ -45,8 +45,7 @@ class SerenadikBot(commands.Cog):
             user = ctx.author
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{cpl.BG_COLORS["Bright Black"]}{timestamp}{cpl.RESET}{cpl.COLORS['Cyan']} | {user.display_name} | {user.name} | {user.id} |{cpl.COLORS[color]} command: {command}{cpl.RESET}")
-
+        print(f"{cpl.BG_COLORS['Bright Black']}{timestamp}{cpl.RESET}{cpl.COLORS['Cyan']} | {user.display_name} | {user.name} | {user.id} |{cpl.COLORS[color]} command: {command}{cpl.RESET}") 
     def get_looped_song(self, guild_id):
         if guild_id not in self.looped_songs:
             self.looped_songs[guild_id] = None
@@ -280,7 +279,7 @@ class SerenadikBot(commands.Cog):
         current_position = self.__get_current_playback_time(ctx.guild.id)
         target_time = current_position + seconds
 
-        print(f"{cpl.COLORS["Yellow"]}forward by {seconds} seconds")
+        print(f"{cpl.COLORS['Yellow']}forward by {seconds} seconds")
         print(f"current_position: {current_position}")
         print(f"target_time: {target_time}{cpl.RESET}")
 
@@ -292,7 +291,7 @@ class SerenadikBot(commands.Cog):
         current_position = self.__get_current_playback_time(ctx.guild.id)
         target_time = current_position - seconds
 
-        print(f"{cpl.COLORS["Yellow"]}backward by {seconds} seconds")
+        print(f"{cpl.COLORS['Yellow']}forward by {seconds} seconds")
         print(f"current_position: {current_position}")
         print(f"target_time: {target_time}{cpl.RESET}")
         
@@ -367,8 +366,7 @@ class SerenadikBot(commands.Cog):
             if len(voice_client.channel.members) == 1:
                 await voice_client.disconnect()
                 self.queue_manager.clear_queues(member.guild.id)
-                print(f"{cpl.COLORS["Yellow"]}Bot left the channel in guild {member.guild.id} after 10 sec of being alone {cpl.RESET}")
-
+                print(f"{cpl.COLORS['Yellow']}Bot left the channel in guild {member.guild.id} after 10 sec of being alone {cpl.RESET}")
     @commands.Cog.listener()
     async def on_voice_channel_update(self, member, before, after):
         if member == self.client.user:

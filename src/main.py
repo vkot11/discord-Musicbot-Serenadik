@@ -45,7 +45,7 @@ async def async_input(prompt: str = ""):
     return await loop.run_in_executor(None, input, prompt)
 
 async def io():
-    print(f"{GREEN}Bot is Factive{RESET}")
+    print(f"{GREEN}Bot is Factive{RESET}") 
     while True:
         user_input = await async_input(": ")
         parts = user_input.split(" ")
