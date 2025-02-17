@@ -17,7 +17,6 @@ class YdlProcessor:
             'nocheckcertificate': True,
             'no_color': True,
             'verbose': True,
-#            'cookiefile': "/home/eagle/MS-testcd/discord-Musicbot-Serenadik/cook_convert.txt"
             'cookiefile': cookies_path
         }
 
@@ -25,7 +24,6 @@ class YdlProcessor:
             'extract_flat': 'in_playlist',
             'skip_download': True,
             'quiet': True,
-#            'cookiefile': "/home/eagle/MS-testcd/discord-Musicbot-Serenadik/cook_convert.txt"
             'cookiefile': cookies_path
         } 
 
