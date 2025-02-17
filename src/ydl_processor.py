@@ -6,7 +6,6 @@ import os
 
 class YdlProcessor:
     cache_size = 100
-
     def __init__(self, cache_size=100):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         cookies_path = os.path.join(current_dir, "..", "cookies/cookies_file.txt")
@@ -25,7 +24,9 @@ class YdlProcessor:
             'skip_download': True,
             'quiet': True,
             'cookiefile': cookies_path,
-        } 
+
+        }
+
 
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)

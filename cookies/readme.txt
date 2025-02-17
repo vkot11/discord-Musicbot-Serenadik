@@ -1,0 +1,1 @@
+HERE YOU SHOULD LEAVE YOUR cookies_file.txt in UTF-8 
