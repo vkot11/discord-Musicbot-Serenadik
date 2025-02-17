@@ -41,19 +41,19 @@ class YdlProcessor:
         info = self.__cached_extract_info(url)
 
         if search and 'entries' in info:
-            info = info['entries'][0]
+            info = info.get('entries')[0]
 
         return SongInfo(
-            url=info['url'],
-            title=info['title'],
-            duration=info['duration'],
-            thumbnail=info['thumbnail'],
-            link=info['webpage_url']
+            url=info.get('url'),
+            title=info.get('title'),
+            duration=info.get('duration'),
+            thumbnail=info.get('thumbnail'),
+            link=info.get('webpage_url')
         )
 
     def extract_playlist_info(self, url):
         playlist_info = self.ydl_ext.extract_info(url, download=False)
-        entries = playlist_info['entries']
+        entries = playlist_info.get('entries')
         
         return PlaylistInfo(
             title=playlist_info.get('title', 'Mix Youtube'),
