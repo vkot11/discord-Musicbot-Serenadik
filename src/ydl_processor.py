@@ -17,14 +17,14 @@ class YdlProcessor:
             'nocheckcertificate': True,
             'no_color': True,
             'verbose': True,
-            'cookiefile': cookies_path
+            'cookiefile': cookies_path,
         }
 
         YDL_OPTIONS_EXT = {
             'extract_flat': 'in_playlist',
             'skip_download': True,
             'quiet': True,
-            'cookiefile': cookies_path
+            'cookiefile': cookies_path,
         } 
 
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
