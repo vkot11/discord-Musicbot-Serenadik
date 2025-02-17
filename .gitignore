@@ -11,3 +11,4 @@ bin
 venv/
 todolist.txt
 cookies/cookies_file.txt
+convert-cookies.js

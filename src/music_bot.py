@@ -4,6 +4,7 @@ import time
 import asyncio
 import discord
 import datetime
+import yt_dlp
 import color_palette as cpl
 from discord.ext import commands
 from queue_manager import QueueManager
@@ -82,12 +83,6 @@ class SerenadikBot(commands.Cog):
             await self.queue_manager.add_spotify_album(ctx, url, queue, force)
 
     async def __play_audio(self, ctx, url, ffmpeg_options):
-        if ctx.voice_client is None:
-            if ctx.author.voice and ctx.author.voice.channel:
-                await ctx.author.voice.channel.connect()
-            else:
-                await ctx.send("TEST: YOU MUST BE IN THE VOICE CHAT!!")
-                return
 
         ffmpeg_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../bin/ffmpeg.exe"))
         source = await discord.FFmpegOpusAudio.from_probe(
@@ -95,11 +90,9 @@ class SerenadikBot(commands.Cog):
             executable=ffmpeg_path,
             **ffmpeg_options
         )
-        if ctx.voice_client:
-            ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
-            self.songs_start_time[ctx.guild.id] = time.time()
-        else:
-            await ctx.send("TEST: MUSIC BOT IS NOT PLAYING, MB BOT IS NOT CONNECTED")
+
+        ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
+        self.songs_start_time[ctx.guild.id] = time.time()
 
     async def play_next(self, ctx, user=None):
         guild_id = ctx.guild.id
@@ -111,15 +104,8 @@ class SerenadikBot(commands.Cog):
             return
 
         looped_song_info = self.get_looped_song(guild_id)
-
+        
         if looped_song_info is not None:
-            if ctx.voice_client is None:
-                if ctx.author.voice and ctx.author.voice.channel:
-                    await ctx.author.voice.channel.connect()
-                else:
-                    await ctx.send("TEST: I AM NOT HERE")
-                    return
-                    
             await self.__play_audio(ctx, looped_song_info.url, FFMPEG_OPTIONS)
             return
 
@@ -129,19 +115,17 @@ class SerenadikBot(commands.Cog):
             await ctx.send(embed=EmbedCreator.create_empty_queue_embed())
             return
 
-        if await self.queue_manager.prepare_song_info(queue) is None:
-            await self.play_next(ctx)
+        if ctx.voice_client:
+            if await self.queue_manager.prepare_song_info(queue) is None:
+                await self.play_next(ctx)
+        else:
+            self.queue_manager.clear_queues(guild_id)
+            self.looped_songs[guild_id] = None
+            self.manually_stopped_flags[guild_id] = False
             return
-
+        
         song_info = queue.popleft()
         history_queue.append(song_info)
-
-        if ctx.voice_client is None:
-            if ctx.author.voice and ctx.author.voice.channel:
-                await ctx.author.voice.channel.connect()
-            else:
-                await ctx.send("TEST: I AM NOT HERE")
-                return
 
         await self.__play_audio(ctx, song_info.url, FFMPEG_OPTIONS)
         
@@ -157,6 +141,27 @@ class SerenadikBot(commands.Cog):
 
         if not queue and not history_queue and ctx.voice_client.is_playing():
             await ctx.send(embed=EmbedCreator.create_error_embed())
+
+    def get_youtube_stream_url(self, url):
+        ydl_opts = {
+            'format': 'bestaudio', 
+            'noplaylist': True, 
+            'quiet': True 
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return info.get('url')
+
+    @commands.command()
+    async def getsource(self, ctx, url):
+        stream_url = self.get_youtube_stream_url(url)
+        
+        if not stream_url:
+            await ctx.send("Не вдалося отримати аудіопотік зі стріму!")
+            return
+
+        await ctx.send(f"🔗 Пряме посилання на аудіо: `{stream_url}`")
+
 
     @commands.command()
     async def play(self, ctx, *, url):
@@ -309,10 +314,13 @@ class SerenadikBot(commands.Cog):
     async def stop(self, ctx, user):
         if ctx.voice_client:
             guild_id = ctx.guild.id
+            
+            ctx.voice_client.stop()
+
             self.queue_manager.clear_queues(guild_id)
             self.looped_songs[guild_id] = None
             self.manually_stopped_flags[guild_id] = True
-            ctx.voice_client.stop()
+            
             await ctx.send("Stopped the music and cleared the queue 🛑")
 
     async def __play_radio(self, ctx, url):
