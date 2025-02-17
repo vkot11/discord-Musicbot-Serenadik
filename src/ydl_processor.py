@@ -9,7 +9,7 @@ class YdlProcessor:
 
     def __init__(self, cache_size=100):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        cookies_path = os.path.join(current_dir, "..", "cook_convert.txt")
+        cookies_path = os.path.join(current_dir, "..", "cookies/cookies_file.txt")
 
         YDL_OPTIONS = {
             'format': 'bestaudio',
