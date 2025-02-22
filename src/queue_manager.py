@@ -42,8 +42,9 @@ class QueueManager:
                 return None
         return queue[0]
 
-    async def add_song_to_queue(self, ctx, url, queue, is_link=True, force=False):
+    async def add_song_to_queue(self, ctx, url, queue, is_link=True, force=False, flag="default"):
         song_info = self.ydl_processor.extract_song_info(url, not is_link)
+        song_info.flag = flag
         queue.appendleft(song_info) if force else queue.append(song_info)
 
         embed = EmbedCreator.create_song_added_embed(song_info.title, song_info.link, force)

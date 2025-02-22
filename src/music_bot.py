@@ -11,7 +11,7 @@ from queue_manager import QueueManager
 from control_view import SerenadikView
 from embed_creator import EmbedCreator
 from radio_handler import RadioHandler
-from constants import FFMPEG_OPTIONS, URL_REGEX
+from constants import FFMPEG_OPTIONS, FFMPEG_NIGHTCORE_OPTIONS, FFMPEG_BASSBOOST_OPTIONS, URL_REGEX
 
 
 class SerenadikBot(commands.Cog):
@@ -26,6 +26,11 @@ class SerenadikBot(commands.Cog):
         self.queue_manager = QueueManager()
         self.radio_handler = RadioHandler()
         self.client.add_check(self.__globally_block)
+        self.ffmpeg_flag_options  = {
+            'default': FFMPEG_OPTIONS, 
+            'ncore': FFMPEG_NIGHTCORE_OPTIONS, 
+            'bboost': FFMPEG_BASSBOOST_OPTIONS
+        }
 
     @staticmethod
     def ban_user(user_id: str):
@@ -57,7 +62,11 @@ class SerenadikBot(commands.Cog):
             self.manually_stopped_flags[guild_id] = False
         return self.manually_stopped_flags[guild_id]
 
-    async def __add_to_queue(self, ctx, url, force=False):
+    def get_ffmpeg_options(self, flag: str):
+        flag = flag.lower()
+        return self.ffmpeg_flag_options.get(flag, 'default')
+
+    async def __add_to_queue(self, ctx, url, force=False, flag="default"):
         queue, _ = self.queue_manager.get_queues(ctx.guild.id)
 
         async with ctx.typing():     
@@ -70,7 +79,7 @@ class SerenadikBot(commands.Cog):
                 await self.queue_manager.add_playlist_to_queue(ctx, url, queue, force)
 
             else:
-                await self.queue_manager.add_song_to_queue(ctx, url, queue, is_link, force)
+                await self.queue_manager.add_song_to_queue(ctx, url, queue, is_link, force, flag)
 
     async def __handle_spotify_url(self, ctx, url, queue, force):
         if "track" in url:
@@ -92,7 +101,7 @@ class SerenadikBot(commands.Cog):
         )
 
         ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
-        self.songs_start_time[ctx.guild.id] = time.time()
+        self.songs_start_time[ctx.guild.id] = time.time
 
     async def play_next(self, ctx, user=None):
         guild_id = ctx.guild.id
@@ -106,7 +115,7 @@ class SerenadikBot(commands.Cog):
         looped_song_info = self.get_looped_song(guild_id)
         
         if looped_song_info is not None:
-            await self.__play_audio(ctx, looped_song_info.url, FFMPEG_OPTIONS)
+            await self.__play_audio(ctx, looped_song_info.url, self.get_ffmpeg_options(looped_song_info.flag))
             return
 
         queue, history_queue = self.queue_manager.get_queues(guild_id)
@@ -127,7 +136,7 @@ class SerenadikBot(commands.Cog):
         song_info = queue.popleft()
         history_queue.append(song_info)
 
-        await self.__play_audio(ctx, song_info.url, FFMPEG_OPTIONS)
+        await self.__play_audio(ctx, song_info.url, self.get_ffmpeg_options(song_info.flag))
         
         embed = EmbedCreator.create_now_playing_embed(
             song_info.title, 
@@ -164,9 +173,9 @@ class SerenadikBot(commands.Cog):
 
 
     @commands.command()
-    async def play(self, ctx, *, url):
+    async def play(self, ctx, url, flag="default"):
         await ctx.message.delete()
-
+        
         voice_channel = ctx.author.voice.channel if ctx.author.voice else None
         
         if not voice_channel:
@@ -175,13 +184,13 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client:
             await voice_channel.connect()
         
-        await self.__add_to_queue(ctx, url)
+        await self.__add_to_queue(ctx, url, False, flag)
 
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
     @commands.command()
-    async def fplay(self, ctx, *, url):
+    async def fplay(self, ctx, url, flag="default"):
         await ctx.message.delete()
 
         voice_channel = ctx.author.voice.channel if ctx.author.voice else None
@@ -192,7 +201,7 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client:
             await voice_channel.connect()
 
-        await self.__add_to_queue(ctx, url, True)
+        await self.__add_to_queue(ctx, url, True, flag)
 
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
