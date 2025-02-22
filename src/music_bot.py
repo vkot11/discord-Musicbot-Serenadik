@@ -52,6 +52,7 @@ class SerenadikBot(commands.Cog):
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{cpl.BG_COLORS['Bright Black']}{timestamp}{cpl.RESET}{cpl.COLORS['Cyan']} | {user.display_name} | {user.name} | {user.id} |{cpl.COLORS[color]} command: {command}{cpl.RESET}") 
+    
     def get_looped_song(self, guild_id):
         if guild_id not in self.looped_songs:
             self.looped_songs[guild_id] = None
@@ -65,6 +66,18 @@ class SerenadikBot(commands.Cog):
     def get_ffmpeg_options(self, flag: str):
         flag = flag.lower()
         return self.ffmpeg_flag_options.get(flag, 'default')
+
+    def __flags_contains(self, flag: str):
+        return flag in self.ffmpeg_flag_options
+
+    def __parse_flag_from_query(self, query: str) -> tuple[str, str]:
+        words = query.split()
+        last_word = words[-1].lower()
+        
+        if (self.__flags_contains(last_word)):
+            return ' '.join(words[:-1]), last_word
+        
+        return query, 'default'
 
     async def __add_to_queue(self, ctx, url, force=False, flag="default"):
         queue, _ = self.queue_manager.get_queues(ctx.guild.id)
@@ -173,7 +186,7 @@ class SerenadikBot(commands.Cog):
 
 
     @commands.command()
-    async def play(self, ctx, url, flag="default"):
+    async def play(self, ctx, *, query):
         await ctx.message.delete()
         
         voice_channel = ctx.author.voice.channel if ctx.author.voice else None
@@ -184,13 +197,15 @@ class SerenadikBot(commands.Cog):
         if not ctx.voice_client:
             await voice_channel.connect()
         
+        url, flag = self.__parse_flag_from_query(query)
+
         await self.__add_to_queue(ctx, url, False, flag)
 
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
     @commands.command()
-    async def fplay(self, ctx, url, flag="default"):
+    async def fplay(self, ctx, *, query):
         await ctx.message.delete()
 
         voice_channel = ctx.author.voice.channel if ctx.author.voice else None
@@ -200,6 +215,8 @@ class SerenadikBot(commands.Cog):
         
         if not ctx.voice_client:
             await voice_channel.connect()
+
+        url, flag = self.__parse_flag_from_query(query)
 
         await self.__add_to_queue(ctx, url, True, flag)
 
@@ -272,7 +289,7 @@ class SerenadikBot(commands.Cog):
         target_time = min(max(0, seconds), int(song_info.duration))
 
         FFMPEG_SEEK_OPTIONS = {
-            **FFMPEG_OPTIONS,
+            **self.get_ffmpeg_options(song_info.flag),
             'before_options': f"-ss {target_time} -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
         }
 
@@ -384,6 +401,7 @@ class SerenadikBot(commands.Cog):
                 await voice_client.disconnect()
                 self.queue_manager.clear_queues(member.guild.id)
                 print(f"{cpl.COLORS['Yellow']}Bot left the channel in guild {member.guild.id} after 10 sec of being alone {cpl.RESET}")
+    
     @commands.Cog.listener()
     async def on_voice_channel_update(self, member, before, after):
         if member == self.client.user:
