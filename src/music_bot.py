@@ -63,9 +63,8 @@ class SerenadikBot(commands.Cog):
             self.manually_stopped_flags[guild_id] = False
         return self.manually_stopped_flags[guild_id]
 
-    def get_ffmpeg_options(self, flag: str):
-        flag = flag.lower()
-        return self.ffmpeg_flag_options.get(flag, 'default')
+    def get_ffmpeg_options(self, flag='default'):
+        return self.ffmpeg_flag_options.get(flag.lower(), 'default')
 
     def __flags_contains(self, flag: str):
         return flag in self.ffmpeg_flag_options
@@ -105,7 +104,6 @@ class SerenadikBot(commands.Cog):
             await self.queue_manager.add_spotify_album(ctx, url, queue, force)
 
     async def __play_audio(self, ctx, url, ffmpeg_options):
-
         ffmpeg_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../bin/ffmpeg.exe"))
         source = await discord.FFmpegOpusAudio.from_probe(
             url,
@@ -114,7 +112,7 @@ class SerenadikBot(commands.Cog):
         )
 
         ctx.voice_client.play(source, after=lambda _: self.client.loop.create_task(self.play_next(ctx)))
-        self.songs_start_time[ctx.guild.id] = time.time
+        self.songs_start_time[ctx.guild.id] = time.time()
 
     async def play_next(self, ctx, user=None):
         guild_id = ctx.guild.id
@@ -145,6 +143,7 @@ class SerenadikBot(commands.Cog):
             self.looped_songs[guild_id] = None
             self.manually_stopped_flags[guild_id] = False
             return
+        
         
         song_info = queue.popleft()
         history_queue.append(song_info)
@@ -200,7 +199,7 @@ class SerenadikBot(commands.Cog):
         url, flag = self.__parse_flag_from_query(query)
 
         await self.__add_to_queue(ctx, url, False, flag)
-
+            
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
@@ -219,7 +218,7 @@ class SerenadikBot(commands.Cog):
         url, flag = self.__parse_flag_from_query(query)
 
         await self.__add_to_queue(ctx, url, True, flag)
-
+        
         if not ctx.voice_client.is_playing():
             await self.play_next(ctx)
 
