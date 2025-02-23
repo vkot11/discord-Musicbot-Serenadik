@@ -16,6 +16,11 @@ FFMPEG_BASSBOOST_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
 }
 
+FFMPEG_SLOW_REVERB_OPTIONS = {
+    'options': '-vn -c:a libopus -b:a 96k -af "atempo=0.8,aecho=0.8:0.95:50:0.2"',
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
+}
+
 URL_REGEX = re.compile(
     r'(https?://)?(www\.)?((youtube|youtu|youtube-nocookie|music.youtube)\.(com|be)/.+|(open\.spotify\.com)/(track|album|playlist|artist)/[a-zA-Z0-9]+)'
 )
