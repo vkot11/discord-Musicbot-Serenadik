@@ -11,7 +11,7 @@ from queue_manager import QueueManager
 from control_view import SerenadikView
 from embed_creator import EmbedCreator
 from radio_handler import RadioHandler
-from constants import FFMPEG_OPTIONS, FFMPEG_NIGHTCORE_OPTIONS, FFMPEG_BASSBOOST_OPTIONS, URL_REGEX
+from constants import FFMPEG_OPTIONS, FFMPEG_NIGHTCORE_OPTIONS, FFMPEG_BASSBOOST_OPTIONS, FFMPEG_SLOW_REVERB_OPTIONS, URL_REGEX
 
 
 class SerenadikBot(commands.Cog):
@@ -29,7 +29,8 @@ class SerenadikBot(commands.Cog):
         self.ffmpeg_flag_options  = {
             'default': FFMPEG_OPTIONS, 
             'ncore': FFMPEG_NIGHTCORE_OPTIONS, 
-            'bboost': FFMPEG_BASSBOOST_OPTIONS
+            'bboost': FFMPEG_BASSBOOST_OPTIONS,
+            'slowrb': FFMPEG_SLOW_REVERB_OPTIONS,
         }
 
     @staticmethod
