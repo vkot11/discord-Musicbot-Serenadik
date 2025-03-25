@@ -15,7 +15,7 @@ class YdlProcessor:
             'noplaylist': True,
             'nocheckcertificate': True,
             'no_color': True,
-            'verbose': True,
+            # 'verbose': True,
             'cookiefile': cookies_path,
         }
 
@@ -26,7 +26,6 @@ class YdlProcessor:
             'cookiefile': cookies_path,
 
         }
-
 
         self.ydl = yt_dlp.YoutubeDL(YDL_OPTIONS)
         self.ydl_ext = yt_dlp.YoutubeDL(YDL_OPTIONS_EXT)

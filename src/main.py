@@ -14,6 +14,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
 
+# intents.messages = True
+# intents.guilds = True
+
 client = commands.Bot(command_prefix="!", help_command=None, intents=intents)
 
 def ban_user(user_id):

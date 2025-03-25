@@ -95,8 +95,17 @@ class EmbedCreator:
                 "`!seek <seconds>` — Rewind the song to the specified time.\n"
                 "`!forward <seconds>` — Fast forward the specified number of seconds.\n"
                 "`!backward <seconds>` — Rewind by the specified number of seconds.\n"
-                "`!info` — Show information about the bot.\n"
+                "`!info` — Show information about the bot.\n"      
             ),inline=False
+        )
+
+        embed.add_field(
+            name="**Flags**:",
+            value=(
+                "`bboost` — put in the end to make BASSBOOST\n"
+                "`ncore` — put in the end to make NightCore version\n"
+            ),
+            inline=False
         )
         
         embed.add_field(

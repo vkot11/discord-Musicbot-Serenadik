@@ -376,7 +376,88 @@ class SerenadikBot(commands.Cog):
             message = await ctx.send(embed=embed)
             
             asyncio.create_task(self.radio_handler.update_radio_message(ctx, embed, message, url))
+
+
+    # @commands.command()
+    # async def playfile(self, ctx, filename: str = "audio.mp3"):
+    #     """Відтворює mp3 файл з директорії проекту"""
+    #     await ctx.message.delete()
+        
+    #     # Перевірка, чи користувач у голосовому каналі
+    #     voice_channel = ctx.author.voice.channel if ctx.author.voice else None
+    #     if not voice_channel:
+    #         await ctx.send("You're not in a voice channel!")
+    #         return
+        
+    #     # Підключення до голосового каналу, якщо бот ще не підключений
+    #     if not ctx.voice_client:
+    #         await voice_channel.connect()
+        
+    #     try:
+    #         # Формування абсолютного шляху до файлу
+    #         file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), filename))
             
+    #         # Перевірка існування файлу
+    #         if not os.path.exists(file_path):
+    #             await ctx.send(f"File '{filename}' not found!")
+    #             return
+            
+    #         # Перевірка формату файлу
+    #         if not filename.lower().endswith('.mp3'):
+    #             await ctx.send("Only .mp3 files are supported!")
+    #             return
+            
+    #         # Шлях до ffmpeg.exe
+    #         ffmpeg_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../bin/ffmpeg.exe"))
+            
+    #         if not os.path.exists(ffmpeg_path):
+    #             await ctx.send("FFmpeg not found! Please ensure it's installed correctly.")
+    #             return
+            
+    #         # Створення аудіоджерела
+    #         source = discord.PCMVolumeTransformer(
+    #             discord.FFmpegPCMAudio(
+    #                 file_path,
+    #                 executable=ffmpeg_path,
+    #                 options='-vn'
+    #             )
+    #         )
+            
+    #         # Функція для обробки завершення відтворення
+    #         def after_playing(error):
+    #             try:
+    #                 if error:
+    #                     print(f"Playback finished with error: {error}")
+    #                 else:
+    #                     print(f"Successfully finished playing {filename}")
+    #             except Exception as e:
+    #                 print(f"Error in after_playing: {e}")
+            
+    #         # Відтворення файлу
+    #         if ctx.voice_client.is_playing():
+    #             ctx.voice_client.stop()
+            
+    #         ctx.voice_client.play(source, after=after_playing)
+            
+    #         # Логування
+    #         self.user_interaction_info(ctx, None, "Bright Cyan", f"PLAYFILE {filename}")
+            
+    #         # Повідомлення про відтворення
+    #         embed = EmbedCreator.create_now_playing_embed(
+    #             title=f"Playing local file: {filename}",
+    #             link=None,
+    #             duration=None,
+    #             thumbnail=None
+    #         )
+    #         await ctx.send(embed=embed)
+            
+    #     except discord.errors.ClientException as ce:
+    #         await ctx.send(f"Client error: {str(ce)}")
+    #         print(f"ClientException: {str(ce)}")
+    #     except Exception as e:
+    #         await ctx.send(f"Error playing file: {str(e)}")
+    #         print(f"Error playing file: {str(e)}")
+
     @commands.command()
     async def osu(self, ctx):
         osu_radio_url = 'https://radio.yas-online.net/listen/osustation'
@@ -391,15 +472,15 @@ class SerenadikBot(commands.Cog):
             asyncio.create_task(self.radio_handler.update_radio_message(ctx, embed, message, osu_radio_url))
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member, before, after):
+    async def on_voice_state_update(self, member):
         voice_client = discord.utils.get(self.client.voice_clients, guild=member.guild)
         if voice_client and voice_client.channel:
-            await asyncio.sleep(10)
+            await asyncio.sleep(60)
 
             if len(voice_client.channel.members) == 1:
                 await voice_client.disconnect()
                 self.queue_manager.clear_queues(member.guild.id)
-                print(f"{cpl.COLORS['Yellow']}Bot left the channel in guild {member.guild.id} after 10 sec of being alone {cpl.RESET}")
+                print(f"{cpl.COLORS['Yellow']}Bot left the channel in guild {member.guild.id} after 60 sec of being alone {cpl.RESET}")
     
     @commands.Cog.listener()
     async def on_voice_channel_update(self, member, before, after):
