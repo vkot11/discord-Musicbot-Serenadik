@@ -1,34 +1,15 @@
-FROM ubuntu:22.04
+FROM python:3.12-slim
 
-ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /app
 
-RUN apt-get update && apt-get upgrade -y \
-    && apt-get install -y \
-    python3.10 \
-    python3.10-distutils \
-    python3-pip \
+RUN apt-get update && apt-get install -y \
     ffmpeg \
-    ffmpeg-doc \
-    ffmpeg2theora \
-    ffmpegfs \
-    ffmpegthumbnailer \
-    ffmpegthumbs \
-    ffmsindex \
-    git \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-RUN python3.10 -m pip install --upgrade pip
+COPY requirements.txt .
 
-COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install -r /tmp/requirements.txt
+COPY . .
 
-COPY .env /env/.env
-
-COPY cook_convert.txt /cook_convert.txt
-
-COPY ./src /src
-
-WORKDIR /
-
-CMD ["python3.10", "/src/main.py"] 
+CMD ["python", "/src/main.py"] 

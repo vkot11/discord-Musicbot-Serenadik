@@ -1,9 +1,13 @@
 import os
 import asyncio
+import sys
 import discord
 from dotenv import load_dotenv
 from discord.ext import commands
 from music_bot import SerenadikBot
+import functools
+
+print = functools.partial(print, flush=True)
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -35,6 +39,7 @@ commands = {
 }
 
 async def main():
+    print(f"{GREEN}Bot is Active{RESET}") 
     try:
         await client.add_cog(SerenadikBot(client))
         await client.start(TOKEN)
@@ -48,7 +53,6 @@ async def async_input(prompt: str = ""):
     return await loop.run_in_executor(None, input, prompt)
 
 async def io():
-    print(f"{GREEN}Bot is Factive{RESET}") 
     while True:
         user_input = await async_input(": ")
         parts = user_input.split(" ")
@@ -61,11 +65,17 @@ async def io():
         else:
             print(f"{GREEN}Unknown command{RESET}")
         
+def is_interactive():
+    return sys.stdin.isatty()
+
 async def run_async():
-    await asyncio.gather(
-        main(),
-        io()
-    )
+    if is_interactive():
+        await asyncio.gather(
+            main(),
+            io()
+        )
+    else:
+        await main()
 
 if __name__ == "__main__":
     asyncio.run(run_async())
